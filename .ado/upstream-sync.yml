@@ -77,6 +77,42 @@ steps:
 - task: Bash@3
   displayName: "Create PR (if changes detected)"
   condition: eq(variables['CHANGED'], 'yes')
+  env:
+    AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)   # use the pipeline token as PAT
+  inputs:
+    targetType: inline
+    script: |
+      set -e
+      # Ensure the Azure DevOps CLI extension is available
+      az extension add -n azure-devops -y || az extension update -n azure-devops
+
+      # Configure org/project and validate auth
+      az devops configure --defaults organization=$(AZDO_ORG) project=$(AZDO_PROJECT)
+      az repos list 1>/dev/null
+
+      # Avoid duplicate active PRs
+      EXISTING=$(az repos pr list \
+        --source-branch $(SYNC_BRANCH) \
+        --target-branch $(TARGET_BRANCH) \
+        --status active \
+        --query "length(@)")
+      if [ "$EXISTING" != "0" ]; then
+        echo "Active PR already exists; skipping."
+        exit 0
+      fi
+
+      TITLE="Upstream sync: $(date -u +%Y-%m-%d) – mirror of upstream/main"
+      BODY=$'Daily mirror of upstream.\n\nPlease review, run tests, and merge if green.'
+
+      az repos pr create \
+        --source-branch $(SYNC_BRANCH) \
+        --target-branch $(TARGET_BRANCH) \
+        --title "$TITLE" \
+        --description "$BODY" \
+        --auto-complete false
+
+  displayName: "Create PR (if changes detected)"
+  condition: eq(variables['CHANGED'], 'yes')
   inputs:
     targetType: inline
     script: |
