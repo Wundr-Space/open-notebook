@@ -78,19 +78,18 @@ steps:
   displayName: "Create PR (if changes detected)"
   condition: eq(variables['CHANGED'], 'yes')
   env:
-    AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)   # use the pipeline token as PAT
+    AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
   inputs:
     targetType: inline
     script: |
       set -e
-      # Ensure the Azure DevOps CLI extension is available
-      az extension add -n azure-devops -y || az extension update -n azure-devops
 
-      # Configure org/project and validate auth
+      # Ensure CLI extension & auth
+      az extension add -n azure-devops -y || az extension update -n azure-devops
       az devops configure --defaults organization=$(AZDO_ORG) project=$(AZDO_PROJECT)
       az repos list 1>/dev/null
 
-      # Avoid duplicate active PRs
+      # Skip if an active PR already exists
       EXISTING=$(az repos pr list \
         --source-branch $(SYNC_BRANCH) \
         --target-branch $(TARGET_BRANCH) \
@@ -104,40 +103,13 @@ steps:
       TITLE="Upstream sync: $(date -u +%Y-%m-%d) – mirror of upstream/main"
       BODY=$'Daily mirror of upstream.\n\nPlease review, run tests, and merge if green.'
 
-      az repos pr create \
+      # Create PR and capture its ID (optional: auto-add reviewers/labels later)
+      PR_ID=$(az repos pr create \
         --source-branch $(SYNC_BRANCH) \
         --target-branch $(TARGET_BRANCH) \
         --title "$TITLE" \
         --description "$BODY" \
-        --auto-complete false
+        --auto-complete false \
+        --query pullRequestId -o tsv)
 
-      displayName: "Create PR (if changes detected)"
-      condition: eq(variables['CHANGED'], 'yes')
-      inputs:
-        targetType: inline
-        script: |
-          set -e
-          # Use pipeline token for az devops
-        az devops configure --defaults organization=$(AZDO_ORG) project=$(AZDO_PROJECT)
-        echo $(System.AccessToken) | az devops login --organization $(AZDO_ORG)
-
-        # Avoid duplicate active PRs
-        EXISTING=$(az repos pr list \
-          --source-branch $(SYNC_BRANCH) \
-          --target-branch $(TARGET_BRANCH) \
-          --status active \
-          --query "length(@)")
-        if [ "$EXISTING" != "0" ]; then
-          echo "Active PR already exists; skipping."
-          exit 0
-        fi
-
-        TITLE="Upstream sync: $(date -u +%Y-%m-%d) – mirror of upstream/main"
-        BODY=$'Daily mirror of upstream.\n\nPlease review, run tests, and merge if green.'
-
-        az repos pr create \
-          --source-branch $(SYNC_BRANCH) \
-          --target-branch $(TARGET_BRANCH) \
-          --title "$TITLE" \
-          --description "$BODY" \
-          --auto-complete false     
+      echo "Created PR #$PR_ID"
