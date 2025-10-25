@@ -55,12 +55,17 @@ steps:
     # Mirror upstream/main exactly into the sync branch
     git reset --hard upstream/main
 
-    # Detect changes vs remote sync branch
-    CHANGED="no"
-    if ! git diff --quiet HEAD origin/$(SYNC_BRANCH) --; then
-      CHANGED="yes"
-      echo "Pushing $(SYNC_BRANCH) to origin…"
-      git push origin $(SYNC_BRANCH) --force
+    # Detect changes vs remote sync branch (if it exists)
+    CHANGED="yes"
+    if [ "$REMOTE_EXISTS" = "yes" ]; then
+      if git diff --quiet HEAD origin/${SYNC_BRANCH} --; then
+        CHANGED="no"
+      fi
+    fi
+
+    if [ "$CHANGED" = "yes" ]; then
+      echo "Pushing ${SYNC_BRANCH} to origin…"
+      git push -u origin ${SYNC_BRANCH} --force
     else
       echo "No upstream changes detected."
     fi
