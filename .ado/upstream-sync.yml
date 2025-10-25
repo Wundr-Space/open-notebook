@@ -51,15 +51,14 @@ steps:
     echo "##vso[task.setvariable variable=CHANGED]$CHANGED"
   displayName: "Sync branch to upstream/main"
 
-- task: AzureCLI@2
+- task: Bash@3
   displayName: "Create PR (if changes detected)"
   condition: eq(variables['CHANGED'], 'yes')
   inputs:
-    azureSubscription: '<Azure-ADO-Service-Connection>'
-    scriptType: bash
-    scriptLocation: inlineScript
-    inlineScript: |
+    targetType: inline
+    script: |
       set -e
+      # Login to Azure DevOps CLI using the pipeline token
       az devops configure --defaults organization=$(AZDO_ORG) project=$(AZDO_PROJECT)
       echo $(System.AccessToken) | az devops login --organization $(AZDO_ORG)
 
@@ -83,3 +82,4 @@ steps:
         --title "$TITLE" \
         --description "$BODY" \
         --auto-complete false
+
