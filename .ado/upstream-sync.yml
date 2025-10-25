@@ -1,14 +1,10 @@
-# .ado/upstream-sync.yml
-# Runs daily at 06:00 UTC on the 'develop' branch
 schedules:
 - cron: "0 6 * * *"
   displayName: "Daily upstream sync"
   branches:
-    include:
-    - develop
+    include: [ develop ]
   always: true
 
-# Disable CI trigger for this pipeline (manual/scheduled only)
 trigger: none
 pr: none
 
@@ -23,34 +19,56 @@ variables:
   UPSTREAM_URL: "https://github.com/lfnovo/open-notebook.git"
 
 steps:
+# 1) Ensure the pipeline has an authenticated 'origin' remote
+- checkout: self
+  persistCredentials: true
+  clean: true
+  fetchDepth: 0   # full history so origin/<branch> refs are available
+
+# 2) Sync script
 - script: |
     set -e
     git config user.name  "Wundr Sync Bot"
     git config user.email "devops@wundr.space"
 
-    # Add & fetch upstream
+    # Add & fetch upstream (public GitHub)
     git remote add upstream $(UPSTREAM_URL) || true
     git fetch upstream
 
-    # Prepare local sync branch (start from target for sensible history)
-    if git ls-remote --exit-code origin refs/heads/$(SYNC_BRANCH); then
-      git checkout $(SYNC_BRANCH)
+    # Make sure we have all refs from origin (ADO) with credentials
+    git fetch origin --prune
+
+    # Prepare/refresh the local sync branch
+    if git ls-remote --exit-code origin refs/heads/$(SYNC_BRANCH) >/dev/null 2>&1; then
+      git checkout -B $(SYNC_BRANCH) origin/$(SYNC_BRANCH)
       git pull origin $(SYNC_BRANCH)
     else
-      git checkout -B $(SYNC_BRANCH) origin/$(TARGET_BRANCH)
+      # Start from target branch (develop) which is protected in origin
+      if git ls-remote --exit-code origin refs/heads/$(TARGET_BRANCH) >/dev/null 2>&1; then
+        git checkout -B $(SYNC_BRANCH) origin/$(TARGET_BRANCH)
+      else
+        echo "ERROR: origin/$(TARGET_BRANCH) not found. Check TARGET_BRANCH variable."
+        exit 1
+      fi
     fi
 
-    # Mirror upstream/main exactly
+    # Mirror upstream/main exactly into the sync branch
     git reset --hard upstream/main
 
+    # Detect changes vs remote sync branch
     CHANGED="no"
     if ! git diff --quiet HEAD origin/$(SYNC_BRANCH) --; then
       CHANGED="yes"
+      echo "Pushing $(SYNC_BRANCH) to origin…"
       git push origin $(SYNC_BRANCH) --force
+    else
+      echo "No upstream changes detected."
     fi
+
     echo "##vso[task.setvariable variable=CHANGED]$CHANGED"
   displayName: "Sync branch to upstream/main"
 
+# 3) Create PR if changes
 - task: Bash@3
   displayName: "Create PR (if changes detected)"
   condition: eq(variables['CHANGED'], 'yes')
@@ -58,7 +76,7 @@ steps:
     targetType: inline
     script: |
       set -e
-      # Login to Azure DevOps CLI using the pipeline token
+      # Use pipeline token for az devops
       az devops configure --defaults organization=$(AZDO_ORG) project=$(AZDO_PROJECT)
       echo $(System.AccessToken) | az devops login --organization $(AZDO_ORG)
 
@@ -82,4 +100,3 @@ steps:
         --title "$TITLE" \
         --description "$BODY" \
         --auto-complete false
-
