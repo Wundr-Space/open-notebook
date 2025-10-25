@@ -1,17 +1,25 @@
 # .ado/upstream-sync.yml
+# Runs daily at 06:00 UTC on the 'develop' branch
 schedules:
-- cron: "0 6 * * *"   # 06:00 UTC daily
+- cron: "0 6 * * *"
+  displayName: "Daily upstream sync"
+  branches:
+    include:
+    - develop
   always: true
-trigger: none
 
-pool: { vmImage: 'ubuntu-latest' }
+# Disable CI trigger for this pipeline (manual/scheduled only)
+trigger: none
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
 
 variables:
-  # Fill these once (or put them in a Variable Group)
   AZDO_ORG: "https://dev.azure.com/wundr"
   AZDO_PROJECT: "Communi.Team"
-  TARGET_BRANCH: "develop"            # where you want to merge upstream into
-  SYNC_BRANCH: "upstream-sync"        # branch we fast-forward daily
+  TARGET_BRANCH: "develop"
+  SYNC_BRANCH: "upstream-sync"
   UPSTREAM_URL: "https://github.com/lfnovo/open-notebook.git"
 
 steps:
@@ -20,37 +28,31 @@ steps:
     git config user.name  "Wundr Sync Bot"
     git config user.email "devops@wundr.space"
 
-    # Use the Azure Repos remote that the pipeline checks out as 'origin'
-    # Add upstream (GitHub OSS)
+    # Add & fetch upstream
     git remote add upstream $(UPSTREAM_URL) || true
     git fetch upstream
-    # Create/checkout the sync branch from origin (or start fresh)
+
+    # Prepare local sync branch (start from target for sensible history)
     if git ls-remote --exit-code origin refs/heads/$(SYNC_BRANCH); then
       git checkout $(SYNC_BRANCH)
       git pull origin $(SYNC_BRANCH)
     else
-      # start from the current target branch so history is sensible
       git checkout -B $(SYNC_BRANCH) origin/$(TARGET_BRANCH)
     fi
 
-    # Hard-reset to upstream/main (mirror upstream exactly)
+    # Mirror upstream/main exactly
     git reset --hard upstream/main
 
-    # Detect changes against remote copy
     CHANGED="no"
     if ! git diff --quiet HEAD origin/$(SYNC_BRANCH) --; then
       CHANGED="yes"
-      echo "Upstream has changes; pushing $(SYNC_BRANCH)…"
       git push origin $(SYNC_BRANCH) --force
-    else
-      echo "No upstream changes."
     fi
-
     echo "##vso[task.setvariable variable=CHANGED]$CHANGED"
-  displayName: Sync branch to upstream
+  displayName: "Sync branch to upstream/main"
 
 - task: AzureCLI@2
-  displayName: Create PR (if changed)
+  displayName: "Create PR (if changes detected)"
   condition: eq(variables['CHANGED'], 'yes')
   inputs:
     azureSubscription: '<Azure-ADO-Service-Connection>'
@@ -58,18 +60,22 @@ steps:
     scriptLocation: inlineScript
     inlineScript: |
       set -e
-      # Configure az devops context
       az devops configure --defaults organization=$(AZDO_ORG) project=$(AZDO_PROJECT)
+      echo $(System.AccessToken) | az devops login --organization $(AZDO_ORG)
 
-      # Check if an open PR already exists from SYNC_BRANCH → TARGET_BRANCH
-      EXISTING=$(az repos pr list --source-branch $(SYNC_BRANCH) --target-branch $(TARGET_BRANCH) --status active --query "length(@)")
+      # Avoid duplicate active PRs
+      EXISTING=$(az repos pr list \
+        --source-branch $(SYNC_BRANCH) \
+        --target-branch $(TARGET_BRANCH) \
+        --status active \
+        --query "length(@)")
       if [ "$EXISTING" != "0" ]; then
-        echo "Active PR already exists; skipping create."
+        echo "Active PR already exists; skipping."
         exit 0
       fi
 
-      TITLE="Upstream sync: $(date -u +%Y-%m-%d) – merge latest from upstream/main"
-      BODY="Daily mirror of upstream.\n\nPlease run tests; if green, merge into $(TARGET_BRANCH)."
+      TITLE="Upstream sync: $(date -u +%Y-%m-%d) – mirror of upstream/main"
+      BODY=$'Daily mirror of upstream.\n\nPlease review, run tests, and merge if green.'
 
       az repos pr create \
         --source-branch $(SYNC_BRANCH) \
