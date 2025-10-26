@@ -62,7 +62,13 @@ steps:
     git fetch --prune origin
 
     echo "[info] Listing refs (heads):"
-    git show-ref --heads | sed 's/^/  /'
+    # use for-each-ref so an empty heads list doesn't fail the script
+    git for-each-ref refs/heads --format='  %(refname:short)'
+
+    echo "[info] Branch state:"
+    git branch -a | sed 's/^/  /' || true
+    echo "[info] Current ref:"
+    git symbolic-ref -q --short HEAD || echo "  (detached HEAD at $(git rev-parse --short HEAD))"
 
     echo "[info] Target branch: ${TARGET_BRANCH}"
     echo "[info] Sync branch:   ${SYNC_BRANCH}"
