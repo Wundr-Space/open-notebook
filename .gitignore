@@ -133,4 +133,4 @@ doc_exports/
 specs/
 .claude
 
-.playwright-mcp/
+.playwright-mcp/gcp-keys/

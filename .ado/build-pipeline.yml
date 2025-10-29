@@ -1,0 +1,158 @@
+# Azure DevOps Build Pipeline for Open Notebook
+# Builds Docker image and pushes to Google Artifact Registry
+
+trigger:
+  branches:
+    include:
+      - develop
+      - staging
+      - main
+  paths:
+    include:
+      - backend/*
+      - frontend/*
+      - Dockerfile.single
+      - pyproject.toml
+      - package.json
+
+pr: none
+
+parameters:
+  - name: environment
+    displayName: 'Target Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - staging
+      - prod
+
+variables:
+  - group: 'open-notebook-${{ parameters.environment }}'  # Variable group per environment
+  - name: imageTag
+    value: '$(Build.BuildId)'
+  - name: latestTag
+    value: 'latest'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Build
+    displayName: 'Build Docker Image'
+    jobs:
+      - job: BuildAndPush
+        displayName: 'Build and Push to Artifact Registry'
+        steps:
+          - task: Bash@3
+            displayName: 'Show Build Information'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "🔨 Building Open Notebook"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "Environment:  ${{ parameters.environment }}"
+                echo "Project:      $(GCP_PROJECT_ID)"
+                echo "Region:       $(GCP_REGION)"
+                echo "Service:      $(CLOUD_RUN_SERVICE)"
+                echo "Build ID:     $(Build.BuildId)"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          - task: Bash@3
+            displayName: 'Install and Configure gcloud CLI'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Installing Google Cloud SDK..."
+                curl https://sdk.cloud.google.com | bash > /dev/null
+                source ${HOME}/google-cloud-sdk/path.bash.inc
+                echo "##vso[task.prependpath]${HOME}/google-cloud-sdk/bin"
+
+          - task: Bash@3
+            displayName: 'Authenticate to Google Cloud'
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Create key file from secret variable
+                echo '$(GCP_SA_KEY)' > ${BUILD_SOURCESDIRECTORY}/gcp-key.json
+
+                # Authenticate
+                gcloud auth activate-service-account --key-file=${BUILD_SOURCESDIRECTORY}/gcp-key.json
+
+                # Set project
+                gcloud config set project $(GCP_PROJECT_ID)
+
+                echo "✓ Authenticated to GCP project: $(GCP_PROJECT_ID)"
+
+          - task: Bash@3
+            displayName: 'Configure Docker for Artifact Registry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev
+                echo "✓ Docker configured for Artifact Registry"
+
+          - task: Bash@3
+            displayName: 'Extract Version'
+            inputs:
+              targetType: 'inline'
+              script: |
+                VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2 || echo "1.0.0")
+                echo "##vso[task.setvariable variable=appVersion]$VERSION"
+                echo "Application Version: $VERSION"
+
+          - task: Docker@2
+            displayName: 'Build Docker Image'
+            inputs:
+              command: 'build'
+              Dockerfile: 'Dockerfile.single'
+              tags: |
+                $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)
+                $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(latestTag)
+                $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)
+              arguments: '--platform linux/amd64'
+
+          - task: Bash@3
+            displayName: 'Push Images to Artifact Registry'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Pushing images..."
+                docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)
+                docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(latestTag)
+                docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)
+                echo "✓ All images pushed successfully"
+
+          - task: Bash@3
+            displayName: 'Clean up credentials'
+            condition: always()
+            inputs:
+              targetType: 'inline'
+              script: |
+                rm -f ${BUILD_SOURCESDIRECTORY}/gcp-key.json
+
+          - task: Bash@3
+            displayName: 'Build Summary'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo ""
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "✓ Build Complete!"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo ""
+                echo "Images pushed:"
+                echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)"
+                echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):latest"
+                echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)"
+                echo ""
+                echo "Ready to deploy!"
+                echo ""
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Build Info'
+            inputs:
+              PathtoPublish: '$(Build.SourcesDirectory)'
+              ArtifactName: 'build-info'
+              publishLocation: 'Container'
