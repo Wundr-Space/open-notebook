@@ -90,7 +90,7 @@ stages:
             inputs:
               targetType: 'inline'
               script: |
-                gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev
+                gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
                 echo "✓ Docker configured for Artifact Registry"
 
           - task: Bash@3
