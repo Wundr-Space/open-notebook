@@ -17,21 +17,19 @@ variables:
   TARGET_BRANCH: "develop"
   SYNC_BRANCH: "upstream-sync"
   UPSTREAM_URL: "https://github.com/lfnovo/open-notebook.git"
-  DEBUG: "true"   # set to "false" to quieten logs
+  DEBUG: "true"
+  AUTO_COMPLETE_THRESHOLD: "10"
 
 steps:
-# 1) Ensure the pipeline has an authenticated 'origin' remote
 - checkout: self
   persistCredentials: true
   clean: true
   fetchDepth: 0
 
-# 2) Sync script (with rich debug)
-- script: |
-    #!/usr/bin/env bash
+- bash: |
     set -Eeuo pipefail
 
-    if [[ "${DEBUG}" == "true" ]]; then
+    if [[ "$DEBUG" == "true" ]]; then
       echo "[debug] Enabling bash xtrace and git verbose tracing"
       set -x
       export GIT_TRACE=1
@@ -39,10 +37,10 @@ steps:
       echo "##vso[task.debug]System debug enabled"
     fi
 
-    trap 'echo "[error] A failure occurred. Dumping quick git state..."; \
+    trap 'echo "[error] A failure occurred. Dumping git state..."; \
           echo "----- git status"; git status || true; \
           echo "----- git remotes -v"; git remote -v || true; \
-          echo "----- git show-ref --heads --tags | tail -n +1"; git show-ref --heads --tags || true; \
+          echo "----- git show-ref --heads --tags"; git show-ref --heads --tags || true; \
           echo "----- last 5 commits on HEAD"; git --no-pager log --oneline -5 || true' ERR
 
     echo "[info] Configuring git user"
@@ -53,141 +51,244 @@ steps:
     echo "[info] Initial remotes:"
     git remote -v
 
-    echo "[info] Adding upstream: ${UPSTREAM_URL}"
-    git remote add upstream "${UPSTREAM_URL}" 2>/dev/null || echo "[warn] upstream already exists"
-    echo "[info] Fetching upstream…"
+    echo "[info] Adding upstream: $UPSTREAM_URL"
+    git remote add upstream "$UPSTREAM_URL" 2>/dev/null || echo "[warn] upstream already exists"
+    
+    echo "[info] Fetching upstream..."
     git fetch --prune upstream
 
-    echo "[info] Fetching origin (ADO)…"
+    echo "[info] Fetching origin (ADO)..."
     git fetch --prune origin
 
     echo "[info] Listing refs (heads):"
-    # use for-each-ref so an empty heads list doesn't fail the script
     git for-each-ref refs/heads --format='  %(refname:short)'
 
     echo "[info] Branch state:"
     git branch -a | sed 's/^/  /' || true
+    
     echo "[info] Current ref:"
     git symbolic-ref -q --short HEAD || echo "  (detached HEAD at $(git rev-parse --short HEAD))"
 
-    echo "[info] Target branch: ${TARGET_BRANCH}"
-    echo "[info] Sync branch:   ${SYNC_BRANCH}"
+    echo "[info] Target branch: $TARGET_BRANCH"
+    echo "[info] Sync branch:   $SYNC_BRANCH"
 
-    echo "[info] Checking for remote existence of origin/${SYNC_BRANCH}"
-    if git ls-remote --exit-code origin "refs/heads/${SYNC_BRANCH}" >/dev/null 2>&1; then
+    echo "[info] Checking for remote existence of origin/$SYNC_BRANCH"
+    if git ls-remote --exit-code origin "refs/heads/$SYNC_BRANCH" >/dev/null 2>&1; then
       REMOTE_EXISTS="yes"
-      echo "[info] origin/${SYNC_BRANCH} exists"
+      echo "[info] origin/$SYNC_BRANCH exists"
     else
       REMOTE_EXISTS="no"
-      echo "[info] origin/${SYNC_BRANCH} does not exist (will create)"
+      echo "[info] origin/$SYNC_BRANCH does not exist (will create)"
     fi
 
-    if [[ "${REMOTE_EXISTS}" == "yes" ]]; then
-      echo "[info] Preparing local ${SYNC_BRANCH} from remote"
-      git checkout -B "${SYNC_BRANCH}" "origin/${SYNC_BRANCH}"
+    if [[ "$REMOTE_EXISTS" == "yes" ]]; then
+      echo "[info] Preparing local $SYNC_BRANCH from remote"
+      git checkout -B "$SYNC_BRANCH" "origin/$SYNC_BRANCH"
       echo "[info] Sync branch before pull: $(git rev-parse --short HEAD)"
-      git pull --ff-only origin "${SYNC_BRANCH}"
+      git pull --ff-only origin "$SYNC_BRANCH"
     else
-      echo "[info] Preparing local ${SYNC_BRANCH} from origin/${TARGET_BRANCH}"
-      if git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" >/dev/null 2>&1; then
-        git checkout -B "${SYNC_BRANCH}" "origin/${TARGET_BRANCH}"
+      echo "[info] Preparing local $SYNC_BRANCH from origin/$TARGET_BRANCH"
+      if git ls-remote --exit-code origin "refs/heads/$TARGET_BRANCH" >/dev/null 2>&1; then
+        git checkout -B "$SYNC_BRANCH" "origin/$TARGET_BRANCH"
       else
-        echo "[error] origin/${TARGET_BRANCH} not found. Check TARGET_BRANCH variable."
+        echo "[error] origin/$TARGET_BRANCH not found. Check TARGET_BRANCH variable."
         exit 1
       fi
     fi
 
     echo "[info] HEAD before hard reset: $(git rev-parse --short HEAD)"
     echo "[info] Upstream main tip: $(git rev-parse --short upstream/main)"
-    echo "[info] Hard-resetting local ${SYNC_BRANCH} to upstream/main to mirror exactly…"
+    echo "[info] Hard-resetting local $SYNC_BRANCH to upstream/main to mirror exactly..."
     git reset --hard "upstream/main"
 
     echo "[info] HEAD after hard reset:  $(git rev-parse --short HEAD)"
 
-    # Show a concise diff summary vs remote sync branch (if it exists)
-    if [[ "${REMOTE_EXISTS}" == "yes" ]]; then
-      echo "[info] Diff summary vs origin/${SYNC_BRANCH}:"
-      git --no-pager diff --stat "origin/${SYNC_BRANCH}" HEAD || true
+    COMMIT_COUNT=0
+    FILES_CHANGED=0
+    COMMITS_BEHIND=0
+    
+    if [[ "$REMOTE_EXISTS" == "yes" ]]; then
+      COMMIT_COUNT=$(git rev-list --count "origin/$SYNC_BRANCH..HEAD" 2>/dev/null || echo "0")
+      FILES_CHANGED=$(git diff --name-only "origin/$SYNC_BRANCH" HEAD 2>/dev/null | wc -l)
+      COMMITS_BEHIND=$(git rev-list --count "HEAD..origin/$SYNC_BRANCH" 2>/dev/null || echo "0")
+      
+      echo "[info] Diff summary vs origin/$SYNC_BRANCH:"
+      git --no-pager diff --stat "origin/$SYNC_BRANCH" HEAD || true
+      echo "[info] Commits ahead: $COMMIT_COUNT"
+      echo "[info] Files changed: $FILES_CHANGED"
+      echo "[info] Commits behind: $COMMITS_BEHIND"
+    else
+      COMMIT_COUNT="new"
+      FILES_CHANGED=$(git ls-files | wc -l)
+      echo "[info] New sync branch - $FILES_CHANGED files total"
     fi
 
-    # Decide if there are changes to push
+    if [[ "$COMMITS_BEHIND" -gt 50 ]]; then
+      echo "##vso[task.logissue type=warning]ADO branch is $COMMITS_BEHIND commits behind upstream. Consider manual review."
+    fi
+
     CHANGED="yes"
-    if [[ "${REMOTE_EXISTS}" == "yes" ]]; then
-      if git diff --quiet HEAD "origin/${SYNC_BRANCH}" --; then
+    if [[ "$REMOTE_EXISTS" == "yes" ]]; then
+      if git diff --quiet HEAD "origin/$SYNC_BRANCH" --; then
         CHANGED="no"
       fi
     fi
-    echo "[info] Changes detected? ${CHANGED}"
+    echo "[info] Changes detected? $CHANGED"
 
-    if [[ "${CHANGED}" == "yes" ]]; then
-      echo "[info] Pushing ${SYNC_BRANCH} to origin (force to mirror upstream)…"
-      git push -u origin "${SYNC_BRANCH}" --force
+    if [[ "$CHANGED" == "yes" ]]; then
+      echo "[info] Pushing $SYNC_BRANCH to origin (force to mirror upstream)..."
+      git push -u origin "$SYNC_BRANCH" --force
       echo "[info] Push complete. Remote tip now: $(git rev-parse --short HEAD)"
     else
       echo "[info] No upstream changes detected. Nothing to push."
     fi
 
-    # Also publish a short log to help reviewers
     echo "[info] Last 5 commits on upstream/main:"
     git --no-pager log upstream/main --oneline -5 | sed 's/^/  /'
 
     echo "##vso[task.setvariable variable=CHANGED]$CHANGED"
-  displayName: "Sync branch to upstream/main (with debug)"
+    echo "##vso[task.setvariable variable=COMMIT_COUNT;isOutput=true]$COMMIT_COUNT"
+    echo "##vso[task.setvariable variable=FILES_CHANGED;isOutput=true]$FILES_CHANGED"
+    echo "##vso[task.setvariable variable=COMMITS_BEHIND;isOutput=true]$COMMITS_BEHIND"
+    
+  displayName: "Sync branch to upstream/main"
 
-# 3) Create PR if changes (with clearer logging)
-- task: Bash@3
+- bash: |
+    set -Eeuo pipefail
+    [[ "$DEBUG" == "true" ]] && set -x
+
+    echo "[info] Installing/updating Azure DevOps CLI extension..."
+    az extension add -n azure-devops -y 2>/dev/null || az extension update -n azure-devops 2>/dev/null
+
+    echo "[info] Configuring az devops defaults"
+    az devops configure --defaults organization="$AZDO_ORG" project="$AZDO_PROJECT"
+
+    echo "[info] Verifying repo access..."
+    az repos list --output none
+
+    echo "[info] Checking for existing active PR from $SYNC_BRANCH -> $TARGET_BRANCH"
+    EXISTING=$(az repos pr list \
+      --source-branch "$SYNC_BRANCH" \
+      --target-branch "$TARGET_BRANCH" \
+      --status active \
+      --query "length(@)")
+
+    echo "[info] Active PR count: $EXISTING"
+    if [[ "$EXISTING" != "0" ]]; then
+      echo "[info] An active PR already exists; skipping PR creation."
+      echo "[info] Listing matching active PRs:"
+      az repos pr list \
+        --source-branch "$SYNC_BRANCH" \
+        --target-branch "$TARGET_BRANCH" \
+        --status active \
+        --query "[].{title:title,url:webUrl}" -o table
+      
+      EXISTING_PR_ID=$(az repos pr list \
+        --source-branch "$SYNC_BRANCH" \
+        --target-branch "$TARGET_BRANCH" \
+        --status active \
+        --query "[0].pullRequestId" -o tsv)
+      echo "##vso[task.setvariable variable=PR_ID;isOutput=true]$EXISTING_PR_ID"
+      exit 0
+    fi
+
+    echo "[info] Generating changelog..."
+    COMMIT_RANGE="origin/$SYNC_BRANCH..upstream/main"
+    
+    CHANGELOG_FILE=$(mktemp)
+    git log --oneline --no-decorate "$COMMIT_RANGE" 2>/dev/null | head -20 | sed 's/^/- /' > "$CHANGELOG_FILE" || echo "- Initial sync" > "$CHANGELOG_FILE"
+    
+    TOTAL_COMMITS=$(git rev-list --count "$COMMIT_RANGE" 2>/dev/null || echo "0")
+    
+    if [[ "$TOTAL_COMMITS" -gt 20 ]]; then
+      REMAINING=$((TOTAL_COMMITS - 20))
+      echo "- ... and ${REMAINING} more commits" >> "$CHANGELOG_FILE"
+    fi
+
+    if [[ "$COMMIT_COUNT" == "new" ]]; then
+      TITLE="Upstream sync: $(date -u +%Y-%m-%d) – initial mirror of upstream/main"
+    else
+      TITLE="Upstream sync: $(date -u +%Y-%m-%d) – $COMMIT_COUNT new commit(s)"
+    fi
+
+    PR_BODY_FILE=$(mktemp)
+    echo "Daily mirror of upstream/main." > "$PR_BODY_FILE"
+    echo "" >> "$PR_BODY_FILE"
+    echo "**Changes in this sync:**" >> "$PR_BODY_FILE"
+    cat "$CHANGELOG_FILE" >> "$PR_BODY_FILE"
+    echo "" >> "$PR_BODY_FILE"
+    echo "**Statistics:**" >> "$PR_BODY_FILE"
+    echo "- Commits: ${COMMIT_COUNT}" >> "$PR_BODY_FILE"
+    echo "- Files changed: ${FILES_CHANGED}" >> "$PR_BODY_FILE"
+    echo "" >> "$PR_BODY_FILE"
+    echo "---" >> "$PR_BODY_FILE"
+    echo "Please review, run tests, and merge if green." >> "$PR_BODY_FILE"
+
+    rm -f "$CHANGELOG_FILE"
+
+    AUTO_COMPLETE="false"
+    if [[ "$FILES_CHANGED" -lt "$AUTO_COMPLETE_THRESHOLD" ]] && [[ "$COMMIT_COUNT" != "new" ]]; then
+      echo "[info] Small changeset detected ($FILES_CHANGED files), enabling auto-complete"
+      AUTO_COMPLETE="true"
+    fi
+
+    echo "[info] Creating PR: '$TITLE'"
+    echo "[info] Auto-complete: $AUTO_COMPLETE"
+    
+    if [[ "$AUTO_COMPLETE" == "true" ]]; then
+      PR_ID=$(az repos pr create \
+        --source-branch "$SYNC_BRANCH" \
+        --target-branch "$TARGET_BRANCH" \
+        --title "$TITLE" \
+        --description @"$PR_BODY_FILE" \
+        --auto-complete true \
+        --squash false \
+        --delete-source-branch false \
+        --query pullRequestId \
+        -o tsv)
+    else
+      PR_ID=$(az repos pr create \
+        --source-branch "$SYNC_BRANCH" \
+        --target-branch "$TARGET_BRANCH" \
+        --title "$TITLE" \
+        --description @"$PR_BODY_FILE" \
+        --auto-complete false \
+        --query pullRequestId \
+        -o tsv)
+    fi
+
+    rm -f "$PR_BODY_FILE"
+
+    echo "[info] PR created with ID #$PR_ID"
+    PR_URL=$(az repos pr show --id "$PR_ID" --query webUrl -o tsv)
+    echo "[info] PR URL: $PR_URL"
+    
+    echo ""
+    echo "=========================================="
+    echo "Created PR #$PR_ID"
+    echo "$PR_URL"
+    echo "=========================================="
+    
+    echo "##vso[task.setvariable variable=PR_ID;isOutput=true]$PR_ID"
+    echo "##vso[task.setvariable variable=PR_URL;isOutput=true]$PR_URL"
+
   displayName: "Create PR (if changes detected)"
   condition: eq(variables['CHANGED'], 'yes')
   env:
     AZURE_DEVOPS_EXT_PAT: $(System.AccessToken)
-  inputs:
-    targetType: inline
-    script: |
-      #!/usr/bin/env bash
-      set -Eeuo pipefail
-      [[ "${DEBUG}" == "true" ]] && set -x
 
-      echo "[info] Installing/updating Azure DevOps CLI extension…"
-      az extension add -n azure-devops -y || az extension update -n azure-devops
-
-      echo "[info] Configuring az devops defaults"
-      az devops configure --defaults organization="$(AZDO_ORG)" project="$(AZDO_PROJECT)"
-
-      echo "[info] Verifying repo access…"
-      az repos list 1>/dev/null
-
-      echo "[info] Checking for existing active PR from $(SYNC_BRANCH) -> $(TARGET_BRANCH)"
-      EXISTING=$(az repos pr list \
-        --source-branch "$(SYNC_BRANCH)" \
-        --target-branch "$(TARGET_BRANCH)" \
-        --status active \
-        --query "length(@)")
-
-      echo "[info] Active PR count: ${EXISTING}"
-      if [[ "${EXISTING}" != "0" ]]; then
-        echo "[info] An active PR already exists; skipping PR creation."
-        echo "[info] Listing matching active PRs (title → URL):"
-        az repos pr list \
-          --source-branch "$(SYNC_BRANCH)" \
-          --target-branch "$(TARGET_BRANCH)" \
-          --status active \
-          --query "[].{title:title,url:webUrl}" -o table
-        exit 0
-      fi
-
-      TITLE="Upstream sync: $(date -u +%Y-%m-%d) – mirror of upstream/main"
-      BODY=$'Daily mirror of upstream.\n\nPlease review, run tests, and merge if green.'
-
-      echo "[info] Creating PR: '${TITLE}'"
-      PR_ID=$(az repos pr create \
-        --source-branch "$(SYNC_BRANCH)" \
-        --target-branch "$(TARGET_BRANCH)" \
-        --title "$TITLE" \
-        --description "$BODY" \
-        --auto-complete false \
-        --query pullRequestId -o tsv)
-
-      echo "[info] PR created with ID #${PR_ID}"
-      PR_URL=$(az repos pr show --id "${PR_ID}" --query webUrl -o tsv)
-      echo "[info] PR URL: ${PR_URL}"
-      echo "Created PR #${PR_ID} (${PR_URL})"
+- bash: |
+    echo "##vso[task.logissue type=error]Upstream sync failed. Manual intervention may be required."
+    echo ""
+    echo "Troubleshooting steps:"
+    echo "1. Check if upstream repository is accessible"
+    echo "2. Review git operation logs above"
+    echo "3. Verify branch names and permissions"
+    echo "4. Consider running sync manually"
+    echo ""
+    echo "Pipeline: $(System.TeamProject)/$(Build.DefinitionName)"
+    echo "Build: $(Build.BuildNumber)"
+    echo "URL: $(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+    
+  displayName: "Notify on sync failure"
+  condition: failed()
