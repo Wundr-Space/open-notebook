@@ -10,7 +10,7 @@ variables:
   SRC_BRANCH: "develop"                    # source branch in ADO
   GH_OWNER: "wundr-space"  
   GH_REPO: "open-notebook"              
-  GH_BASE: "main"                          # target branch on GitHub for the PR
+  GH_BASE: "develop"                          # target branch on GitHub for the PR
   SYNC_PREFIX: "upstream-sync"             # prefix for the temporary PR branch
   GIT_EMAIL: "devops@wundr.space"
   GIT_NAME: "Wundr Bot"
