@@ -1,20 +1,19 @@
-# Purpose: Push ADO 'develop' to GitHub as 'upstream-sync/<date>' and open a PR to 'main'
-
-trigger: none         # run manually
+# Purpose: Push ADO 'develop' to GitHub as 'upstream-sync/<date>' and open a PR to 'develop'
+trigger: none
 pr: none
 
 pool:
   vmImage: ubuntu-latest
 
 variables:
-  SRC_BRANCH: "develop"                    # source branch in ADO
-  GH_OWNER: "wundr-space"  
-  GH_REPO: "open-notebook"              
-  GH_BASE: "develop"                          # target branch on GitHub for the PR
-  SYNC_PREFIX: "upstream-sync"             # prefix for the temporary PR branch
+  SRC_BRANCH: "develop"
+  GH_OWNER: "wundr-space"
+  GH_REPO: "open-notebook"
+  GH_BASE: "develop"
+  SYNC_PREFIX: "upstream-sync"
   GIT_EMAIL: "devops@wundr.space"
   GIT_NAME: "Wundr Bot"
-  DEBUG: "true"                           # set true for verbose git logs
+  DEBUG: "false"
 
 steps:
   - checkout: self
@@ -22,88 +21,136 @@ steps:
     clean: true
     fetchDepth: 0
 
-  - script: |
+  - bash: |
+      sudo apt-get update -qq
+      sudo apt-get install -y jq
+    displayName: "Install dependencies"
+
+  - bash: |
       set -Eeuo pipefail
-
-      if [[ "$(DEBUG)" == "true" ]]; then
-        set -x
-        export GIT_TRACE=1
-        export GIT_CURL_VERBOSE=1
-      fi
-
-      # ---- inputs / sanity checks ----
-      : "${SRC_BRANCH:=$(SRC_BRANCH)}"
-      : "${GH_OWNER:=$(GH_OWNER)}"
-      : "${GH_REPO:=$(GH_REPO)}"
-      : "${GH_BASE:=$(GH_BASE)}"
-      : "${SYNC_PREFIX:=$(SYNC_PREFIX)}"
+      
+      [[ "${DEBUG}" == "true" ]] && set -x
+      
+      SRC_BRANCH="${SRC_BRANCH:-develop}"
+      GH_OWNER="${GH_OWNER:-wundr-space}"
+      GH_REPO="${GH_REPO:-open-notebook}"
+      GH_BASE="${GH_BASE:-develop}"
+      SYNC_PREFIX="${SYNC_PREFIX:-upstream-sync}"
 
       if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-        echo "ERROR: GITHUB_TOKEN not set. Add a secret variable in the pipeline and retry." >&2
+        echo "ERROR: GITHUB_TOKEN not set" 1>&2
         exit 2
       fi
 
-      # ---- prepare git ----
-      git config user.email "$(GIT_EMAIL)"
-      git config user.name  "$(GIT_NAME)"
+      echo "Configuration:"
+      echo "  Source: ${SRC_BRANCH}"
+      echo "  GitHub: ${GH_OWNER}/${GH_REPO}"
+      echo "  Target: ${GH_BASE}"
 
-      # Ensure we are on the source branch and up to date
+      git config user.email "${GIT_EMAIL}"
+      git config user.name  "${GIT_NAME}"
+
+      echo "Fetching branch..."
       git fetch origin "+refs/heads/${SRC_BRANCH}:refs/remotes/origin/${SRC_BRANCH}"
       git checkout -B "${SRC_BRANCH}" "origin/${SRC_BRANCH}"
 
-      # Create a unique sync branch name for GitHub
-      TS="$(date -u +%Y%m%d-%H%M%S)"
-      SYNC_BRANCH="${SYNC_PREFIX}/${SRC_BRANCH}-${TS}"
+      COMMIT_SHA=$(git rev-parse HEAD)
+      COMMIT_SHORT="${COMMIT_SHA:0:8}"
+      echo "Current commit: ${COMMIT_SHORT}"
 
-      # Add GitHub remote with PAT (masked by ADO logs)
+      TS=$(date -u +%Y%m%d-%H%M%S)
+      SYNC_BRANCH="${SYNC_PREFIX}/${SRC_BRANCH}-${TS}"
+      echo "Sync branch: ${SYNC_BRANCH}"
+
+      echo "Setting up GitHub remote..."
       GH_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GH_OWNER}/${GH_REPO}.git"
-      if git remote get-url github >/dev/null 2>&1; then
+      
+      if git remote get-url github 2>/dev/null; then
         git remote set-url github "${GH_URL}"
       else
         git remote add github "${GH_URL}"
       fi
 
-      # Push the sync branch to GitHub (force-with-lease in case we reuse names)
-      git push github "HEAD:refs/heads/${SYNC_BRANCH}" --force-with-lease
+      echo "Pushing to GitHub..."
+      git push github "HEAD:refs/heads/${SYNC_BRANCH}" --force-with-lease || exit 3
 
-      # ---- create the pull request via GitHub API ----
-      PR_TITLE="Sync: ${SRC_BRANCH} → ${GH_BASE} (${TS})"
-      PR_BODY="Automated sync from Azure DevOps.\n\nSource: \`${SRC_BRANCH}\`\nTarget: \`${GH_BASE}\`\nBranch: \`${SYNC_BRANCH}\`"
-
-      create_payload() {
-        cat <<JSON
-      {
-        "title": ${PR_TITLE@Q},
-        "head": ${SYNC_BRANCH@Q},
-        "base": ${GH_BASE@Q},
-        "body": ${PR_BODY@Q},
-        "maintainer_can_modify": true,
-        "draft": false
-      }
-JSON
-      }
-
-      echo "Creating PR on GitHub: ${GH_OWNER}/${GH_REPO} (${SYNC_BRANCH} -> ${GH_BASE})"
-      API="https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/pulls"
-      RESP="$(curl -sS -X POST \
+      API_BASE="https://api.github.com/repos/${GH_OWNER}/${GH_REPO}"
+      
+      echo "Checking for existing PRs..."
+      TEMP_RESP=$(mktemp)
+      
+      curl -w "%{http_code}" -o "$TEMP_RESP" -sS \
         -H "Authorization: Bearer ${GITHUB_TOKEN}" \
         -H "Accept: application/vnd.github+json" \
-        -d "$(create_payload)" \
-        "${API}")"
-
-      # Extract PR URL / number (jq is not guaranteed; use grep/sed)
-      PR_HTML_URL="$(printf "%s" "$RESP" | grep -Eo '"html_url"[[:space:]]*:[[:space:]]*"[^"]+"' | head -1 | sed -E 's/.*"html_url"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
-      PR_NUMBER="$(printf "%s" "$RESP" | grep -Eo '"number"[[:space:]]*:[[:space:]]*[0-9]+' | head -1 | grep -Eo '[0-9]+')"
-
-      if [[ -z "${PR_NUMBER}" || -z "${PR_HTML_URL}" ]]; then
-        echo "GitHub API response:"
-        echo "${RESP}"
-        echo "ERROR: Failed to create PR."
-        exit 3
+        "${API_BASE}/pulls?head=${GH_OWNER}:${SYNC_BRANCH}&base=${GH_BASE}&state=open" > /tmp/http_code.txt
+      
+      HTTP_CODE=$(cat /tmp/http_code.txt)
+      
+      if [[ "$HTTP_CODE" -ge 200 ]] && [[ "$HTTP_CODE" -lt 300 ]]; then
+        EXISTING_NUM=$(jq -r '.[0].number // empty' "$TEMP_RESP" 2>/dev/null || echo "")
+        if [[ -n "$EXISTING_NUM" ]]; then
+          EXISTING_URL=$(jq -r '.[0].html_url' "$TEMP_RESP")
+          echo "PR already exists: ${EXISTING_URL}"
+          rm -f "$TEMP_RESP" /tmp/http_code.txt
+          exit 0
+        fi
       fi
 
-      echo "✅ Pull Request #${PR_NUMBER} created: ${PR_HTML_URL}"
+      echo "Creating pull request..."
+      
+      PR_TITLE="Sync: ${SRC_BRANCH} to ${GH_BASE} (${TS})"
+      
+      read -r -d '' PR_BODY << EOM || true
+      Automated sync from Azure DevOps.
 
-    displayName: "Push branch to GitHub & open PR"
+      Source: ${SRC_BRANCH}
+      Target: ${GH_BASE}
+      Branch: ${SYNC_BRANCH}
+      Commit: ${COMMIT_SHORT}
+      EOM
+
+      PAYLOAD=$(jq -n \
+        --arg title "$PR_TITLE" \
+        --arg head "$SYNC_BRANCH" \
+        --arg base "$GH_BASE" \
+        --arg body "$PR_BODY" \
+        '{"title":$title,"head":$head,"base":$base,"body":$body,"maintainer_can_modify":true,"draft":false}')
+
+      curl -w "%{http_code}" -o "$TEMP_RESP" -sS -X POST \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        -H "Content-Type: application/json" \
+        -d "$PAYLOAD" \
+        "${API_BASE}/pulls" > /tmp/http_code.txt
+
+      HTTP_CODE=$(cat /tmp/http_code.txt)
+
+      if [[ "$HTTP_CODE" -ge 200 ]] && [[ "$HTTP_CODE" -lt 300 ]]; then
+        PR_NUM=$(jq -r '.number' "$TEMP_RESP")
+        PR_URL=$(jq -r '.html_url' "$TEMP_RESP")
+        
+        if [[ -n "$PR_NUM" ]] && [[ "$PR_NUM" != "null" ]]; then
+          echo ""
+          echo "SUCCESS: PR #${PR_NUM} created"
+          echo "${PR_URL}"
+          echo ""
+          echo "##vso[task.setvariable variable=PR_NUMBER;isOutput=true]${PR_NUM}"
+          echo "##vso[task.setvariable variable=PR_URL;isOutput=true]${PR_URL}"
+        else
+          echo "ERROR: Could not parse PR response"
+          cat "$TEMP_RESP"
+          rm -f "$TEMP_RESP" /tmp/http_code.txt
+          exit 4
+        fi
+      else
+        echo "ERROR: GitHub API returned ${HTTP_CODE}"
+        cat "$TEMP_RESP"
+        rm -f "$TEMP_RESP" /tmp/http_code.txt
+        exit 4
+      fi
+      
+      rm -f "$TEMP_RESP" /tmp/http_code.txt
+
+    displayName: "Sync branch to GitHub and create PR"
     env:
       GITHUB_TOKEN: $(GITHUB_TOKEN)
