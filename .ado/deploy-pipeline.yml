@@ -88,9 +88,7 @@ stages:
 
                       echo "Deploying image: $IMAGE_URL"
 
-                      # Deploy with environment variables
-                      # For single-container deployment, API_URL should be empty to use relative URLs
-                      # INTERNAL_API_URL is used by Next.js rewrites for server-side proxying
+                      # Deploy first without API_URL to get the service URL
                       gcloud run deploy $(CLOUD_RUN_SERVICE) \
                         --image=$IMAGE_URL \
                         --region=$(GCP_REGION) \
@@ -102,11 +100,23 @@ stages:
                         --max-instances=$(CLOUD_RUN_MAX_INSTANCES) \
                         --allow-unauthenticated \
                         --timeout=300 \
-                        --set-env-vars="ENVIRONMENT=${{ parameters.environment }},SURREAL_URL=ws://localhost:8000/rpc,SURREAL_USER=root,SURREAL_PASSWORD=root,SURREAL_NAMESPACE=open_notebook,SURREAL_DATABASE=${{ parameters.environment }},INTERNAL_API_URL=http://localhost:5055,API_URL=http://localhost:5055" \
                         --set-secrets="OPENAI_API_KEY=OPENAI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
                         --quiet
 
-                      echo "✓ Deployment complete"
+                      # Get the service URL
+                      SERVICE_URL=$(gcloud run services describe $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --format="value(status.url)")
+
+                      echo "Service URL: $SERVICE_URL"
+
+                      # Update with all environment variables including API_URL set to the service URL
+                      gcloud run services update $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --set-env-vars="ENVIRONMENT=${{ parameters.environment }},SURREAL_URL=ws://localhost:8000/rpc,SURREAL_USER=root,SURREAL_PASSWORD=root,SURREAL_NAMESPACE=open_notebook,SURREAL_DATABASE=${{ parameters.environment }},INTERNAL_API_URL=http://localhost:5055,API_URL=$SERVICE_URL" \
+                        --quiet
+
+                      echo "✓ Deployment complete with API_URL=$SERVICE_URL"
 
                 - task: Bash@3
                   displayName: 'Get Service URL'
