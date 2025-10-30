@@ -99,7 +99,7 @@ stages:
                         --max-instances=$(CLOUD_RUN_MAX_INSTANCES) \
                         --allow-unauthenticated \
                         --timeout=300 \
-                        --set-env-vars="ENVIRONMENT=${{ parameters.environment }},SURREAL_URL=ws://localhost:8000/rpc,SURREAL_USER=root,SURREAL_PASSWORD=root,SURREAL_NAMESPACE=open_notebook,SURREAL_DATABASE=${{ parameters.environment }},API_URL=http://localhost:5055" \
+                        --set-env-vars="ENVIRONMENT=${{ parameters.environment }},SURREAL_URL=ws://localhost:8000/rpc,SURREAL_USER=root,SURREAL_PASSWORD=root,SURREAL_NAMESPACE=open_notebook,SURREAL_DATABASE=${{ parameters.environment }},INTERNAL_API_URL=http://localhost:5055" \
                         --set-secrets="OPENAI_API_KEY=OPENAI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
                         --quiet
 
