@@ -52,10 +52,15 @@ export default function LandingPage() {
           {/* Hero Section */}
           <section className="container mx-auto max-w-7xl px-6 py-16 md:py-24">
             <div className="flex flex-col items-center text-center space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/50 bg-emerald-300/10 px-3 py-1 text-xs uppercase tracking-wider text-emerald-300">
+              <a
+                href="https://github.com/lfnovo/open-notebook"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-300/50 bg-emerald-300/10 px-3 py-1 text-xs uppercase tracking-wider text-emerald-300 hover:border-emerald-300 hover:bg-emerald-300/20 transition-all cursor-pointer"
+              >
                 <Sparkles className="h-3 w-3" />
                 <span>Powered by Open Notebook</span>
-              </div>
+              </a>
 
               <h1 className="max-w-4xl text-4xl md:text-5xl font-semibold tracking-tight leading-relaxed">
                 Knowledge Ops for
