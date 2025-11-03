@@ -43,6 +43,18 @@
 
 :root {
   --radius: 0.65rem;
+  /* Wundr Space Design System Colors */
+  --color-ink-950: #0b1220;
+  --color-card-900: #0e1526;
+  --color-accent-emerald: #34d399;
+  --color-accent-teal: #2dd4bf;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+
+  /* Light mode defaults (for dashboard) */
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
