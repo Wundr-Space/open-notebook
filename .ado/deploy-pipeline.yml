@@ -1,0 +1,188 @@
+# Azure DevOps Deploy Pipeline for Open Notebook
+# Deploys Docker image from Artifact Registry to Google Cloud Run
+
+trigger: none  # Manual trigger only, or triggered by build completion
+
+pr: none
+
+parameters:
+  - name: environment
+    displayName: 'Deployment Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - staging
+      - prod
+  - name: imageTag
+    displayName: 'Image Tag to Deploy'
+    type: string
+    default: 'latest'
+
+variables:
+  - group: 'open-notebook-${{ parameters.environment }}'  # Variable group per environment
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Deploy
+    displayName: 'Deploy to Cloud Run'
+    jobs:
+      - deployment: DeployToCloudRun
+        displayName: 'Deploy to Cloud Run (${{ parameters.environment }})'
+        environment: '${{ parameters.environment }}'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - task: Bash@3
+                  displayName: 'Show Deployment Information'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                      echo "🚀 Deploying Open Notebook"
+                      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                      echo "Environment:  ${{ parameters.environment }}"
+                      echo "Project:      $(GCP_PROJECT_ID)"
+                      echo "Region:       $(GCP_REGION)"
+                      echo "Service:      $(CLOUD_RUN_SERVICE)"
+                      echo "Image Tag:    ${{ parameters.imageTag }}"
+                      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+                - task: Bash@3
+                  displayName: 'Install and Configure gcloud CLI'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      echo "Installing Google Cloud SDK..."
+                      curl https://sdk.cloud.google.com | bash > /dev/null
+                      source ${HOME}/google-cloud-sdk/path.bash.inc
+                      echo "##vso[task.prependpath]${HOME}/google-cloud-sdk/bin"
+
+                - task: Bash@3
+                  displayName: 'Authenticate to Google Cloud'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      # Create key file from secret variable
+                      echo '$(GCP_SA_KEY)' > ${BUILD_SOURCESDIRECTORY}/gcp-key.json
+
+                      # Authenticate
+                      gcloud auth activate-service-account --key-file=${BUILD_SOURCESDIRECTORY}/gcp-key.json
+
+                      # Set project
+                      gcloud config set project $(GCP_PROJECT_ID)
+
+                      echo "✓ Authenticated to GCP project: $(GCP_PROJECT_ID)"
+
+                - task: Bash@3
+                  displayName: 'Deploy to Cloud Run'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      IMAGE_URL="$(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):${{ parameters.imageTag }}"
+
+                      echo "Deploying image: $IMAGE_URL"
+
+                      # Deploy first without API_URL to get the service URL
+                      gcloud run deploy $(CLOUD_RUN_SERVICE) \
+                        --image=$IMAGE_URL \
+                        --region=$(GCP_REGION) \
+                        --platform=managed \
+                        --port=8502 \
+                        --memory=$(CLOUD_RUN_MEMORY) \
+                        --cpu=$(CLOUD_RUN_CPU) \
+                        --min-instances=$(CLOUD_RUN_MIN_INSTANCES) \
+                        --max-instances=$(CLOUD_RUN_MAX_INSTANCES) \
+                        --allow-unauthenticated \
+                        --timeout=300 \
+                        --set-secrets="OPENAI_API_KEY=OPENAI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
+                        --quiet
+
+                      # Get the service URL
+                      SERVICE_URL=$(gcloud run services describe $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --format="value(status.url)")
+
+                      echo "Service URL: $SERVICE_URL"
+
+                      # Update with all environment variables including API_URL set to the service URL
+                      gcloud run services update $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --set-env-vars="ENVIRONMENT=${{ parameters.environment }},SURREAL_URL=ws://localhost:8000/rpc,SURREAL_USER=root,SURREAL_PASSWORD=root,SURREAL_NAMESPACE=open_notebook,SURREAL_DATABASE=${{ parameters.environment }},INTERNAL_API_URL=http://localhost:5055,API_URL=$SERVICE_URL" \
+                        --quiet
+
+                      echo "✓ Deployment complete with API_URL=$SERVICE_URL"
+
+                - task: Bash@3
+                  displayName: 'Get Service URL'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      SERVICE_URL=$(gcloud run services describe $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --format="value(status.url)")
+
+                      echo "##vso[task.setvariable variable=serviceUrl;isOutput=true]$SERVICE_URL"
+                      echo "Service URL: $SERVICE_URL"
+
+                - task: Bash@3
+                  displayName: 'Verify Deployment'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      SERVICE_URL=$(gcloud run services describe $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --format="value(status.url)")
+
+                      echo "Checking service health..."
+
+                      # Wait a moment for service to be ready
+                      sleep 10
+
+                      # Try to reach the service
+                      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $SERVICE_URL)
+
+                      if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 302 ]; then
+                        echo "✓ Service is responding (HTTP $HTTP_CODE)"
+                      else
+                        echo "⚠ Service returned HTTP $HTTP_CODE"
+                        echo "This might be normal if the app requires authentication"
+                      fi
+
+                - task: Bash@3
+                  displayName: 'Deployment Summary'
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      SERVICE_URL=$(gcloud run services describe $(CLOUD_RUN_SERVICE) \
+                        --region=$(GCP_REGION) \
+                        --format="value(status.url)")
+
+                      echo ""
+                      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                      echo "🎉 Deployment Complete!"
+                      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                      echo ""
+                      echo "Environment:  ${{ parameters.environment }}"
+                      echo "Service:      $(CLOUD_RUN_SERVICE)"
+                      echo "Region:       $(GCP_REGION)"
+                      echo "Project:      $(GCP_PROJECT_ID)"
+                      echo "Image Tag:    ${{ parameters.imageTag }}"
+                      echo ""
+                      echo "🔗 Access your deployment:"
+                      echo "$SERVICE_URL"
+                      echo ""
+                      echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+                - task: Bash@3
+                  displayName: 'Clean up credentials'
+                  condition: always()
+                  inputs:
+                    targetType: 'inline'
+                    script: |
+                      rm -f ${BUILD_SOURCESDIRECTORY}/gcp-key.json
