@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { ErrorBoundary } from '@/components/common/ErrorBoundary'
 import { ModalProvider } from '@/components/providers/ModalProvider'
+import { ConnectionGuard } from '@/components/common/ConnectionGuard'
 
 export default function DashboardLayout({
   children,
@@ -51,8 +52,10 @@ export default function DashboardLayout({
 
   return (
     <ErrorBoundary>
-      {children}
-      <ModalProvider />
+      <ConnectionGuard>
+        {children}
+        <ModalProvider />
+      </ConnectionGuard>
     </ErrorBoundary>
   )
 }
