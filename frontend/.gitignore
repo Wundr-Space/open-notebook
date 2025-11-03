@@ -41,3 +41,24 @@ yarn-error.log*
 next-env.d.ts
 
 doc_exports/
+
+# Secrets / keys
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.key
+*.crt
+*.der
+*.jks
+*.keystore
+*.sa.json
+service-account*.json
+gcp-keys/
+
+# Node / build
+node_modules/
+dist/
+.next/
+.cache/

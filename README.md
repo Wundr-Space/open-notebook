@@ -1,455 +1,368 @@
-<a id="readme-top"></a>
-
-<!-- [![Contributors][contributors-shield]][contributors-url] -->
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![MIT License][license-shield]][license-url]
-<!-- [![LinkedIn][linkedin-shield]][linkedin-url] -->
+# 📓 Open Notebook — Wundr Space Fork
 
 
-<!-- PROJECT LOGO -->
-<br />
-<div align="center">
-  <a href="https://github.com/lfnovo/open-notebook">
-    <img src="docs/assets/hero.svg" alt="Logo">
-  </a>
+*A private, multi-model research notebook — operated by Wundr Space for real client work.*
 
-  <h3 align="center">Open Notebook</h3>
+This fork aligns Open Notebook with Wundr Space’s mission: **Agentic AI for Human Connection**.
+We use it as a secure, composable **Information Base** for projects (e.g. uploads of calls, docs, PDFs; assisted notes; podcast generation), backed by governed deployments on Google Cloud.
 
-  <p align="center">
-    An open source, privacy-focused alternative to Google's Notebook LM!
-    <br /><strong>Join our <a href="https://discord.gg/37XJPXfz2w">Discord server</a> for help, to share workflow ideas, and suggest features!</strong>
-    <br />
-    <a href="https://www.open-notebook.ai"><strong>Checkout our website »</strong></a>
-    <br />
-    <br />
-    <a href="docs/getting-started/index.md">📚 Get Started</a>
-    ·
-    <a href="docs/user-guide/index.md">📖 User Guide</a>
-    ·
-    <a href="docs/features/index.md">✨ Features</a>
-    ·
-    <a href="docs/deployment/index.md">🚀 Deploy</a>
-  </p>
-</div>
-
-<div align="center">
-  <!-- Keep these links. Translations will automatically update with the README. -->
-  <a href="https://zdoc.app/de/lfnovo/open-notebook">Deutsch</a> | 
-  <a href="https://zdoc.app/es/lfnovo/open-notebook">Español</a> | 
-  <a href="https://zdoc.app/fr/lfnovo/open-notebook">français</a> | 
-  <a href="https://zdoc.app/ja/lfnovo/open-notebook">日本語</a> | 
-  <a href="https://zdoc.app/ko/lfnovo/open-notebook">한국어</a> | 
-  <a href="https://zdoc.app/pt/lfnovo/open-notebook">Português</a> | 
-  <a href="https://zdoc.app/ru/lfnovo/open-notebook">Русский</a> | 
-  <a href="https://zdoc.app/zh/lfnovo/open-notebook">中文</a>
-</div>
-
-## A private, multi-model, 100% local, full-featured alternative to Notebook LM
-
-![New Notebook](docs/assets/asset_list.png)
-
-In a world dominated by Artificial Intelligence, having the ability to think 🧠 and acquire new knowledge 💡, is a skill that should not be a privilege for a few, nor restricted to a single provider.
-
-**Open Notebook empowers you to:**
-- 🔒 **Control your data** - Keep your research private and secure
-- 🤖 **Choose your AI models** - Support for 16+ providers including OpenAI, Anthropic, Ollama, LM Studio, and more
-- 📚 **Organize multi-modal content** - PDFs, videos, audio, web pages, and more
-- 🎙️ **Generate professional podcasts** - Advanced multi-speaker podcast generation
-- 🔍 **Search intelligently** - Full-text and vector search across all your content
-- 💬 **Chat with context** - AI conversations powered by your research
-
-Learn more about our project at [https://www.open-notebook.ai](https://www.open-notebook.ai)
+> **Upstream docs remain the canonical feature reference.**
+> Please read the community README and guides for core capabilities, supported providers, and UI changes:
+> 👉 **Open Notebook (community)**: [https://github.com/lfnovo/open-notebook](https://github.com/lfnovo/open-notebook)
 
 ---
 
-## ⚠️ IMPORTANT: v1.0 Breaking Changes
+## 🔭 What’s different in our fork?
 
-**If you're upgrading from a previous version**, please note:
-
-- 🏷️ **Docker tags have changed**: The `latest` tag is now **frozen** at the last Streamlit version
-- 🆕 **Use `v1-latest` tag** for the new React/Next.js version (recommended)
-- 🔌 **Port 5055 required**: You must expose port 5055 for the API to work
-- 📖 **Read the migration guide**: See [MIGRATION.md](MIGRATION.md) for detailed upgrade instructions
-
-**New users**: You can ignore this notice and proceed with the Quick Start below using the `v1-latest-single` tag.
+* **Ops & security posture** for client work (Cloud Run, private networking options later, secret management).
+* **Pipelines** tuned for repeatable builds and zero-touch deploys to **`communi-team-dev`** (staging) and production later.
+* **Environment conventions** (Wundr `.env` layout, provider keys, storage paths).
+* **Road to integration** with Wundr Map / Data Lab (export hooks and agent connectors – WIP).
 
 ---
 
-## 🆚 Open Notebook vs Google Notebook LM
+## 🗺️ Admin Portals (quick links)
 
-| Feature | Open Notebook | Google Notebook LM | Advantage |
-|---------|---------------|--------------------|-----------|
-| **Privacy & Control** | Self-hosted, your data | Google cloud only | Complete data sovereignty |
-| **AI Provider Choice** | 16+ providers (OpenAI, Anthropic, Ollama, LM Studio, etc.) | Google models only | Flexibility and cost optimization |
-| **Podcast Speakers** | 1-4 speakers with custom profiles | 2 speakers only | Extreme flexibility |
-| **Context Control** | 3 granular levels | All-or-nothing | Privacy and performance tuning |
-| **Content Transformations** | Custom and built-in | Limited options | Unlimited processing power |
-| **API Access** | Full REST API | No API | Complete automation |
-| **Deployment** | Docker, cloud, or local | Google hosted only | Deploy anywhere |
-| **Citations** | Comprehensive with sources | Basic references | Research integrity |
-| **Customization** | Open source, fully customizable | Closed system | Unlimited extensibility |
-| **Cost** | Pay only for AI usage | Monthly subscription + usage | Transparent and controllable |
+* **Google Cloud Console (Project: `communi-team-dev`)**
+  [https://console.cloud.google.com/home/dashboard?project=communi-team-dev](https://console.cloud.google.com/home/dashboard?project=communi-team-dev)
+* **Cloud Run – Services**
+  [https://console.cloud.google.com/run?project=communi-team-dev](https://console.cloud.google.com/run?project=communi-team-dev)
+* **Artifact Registry – Images**
+  [https://console.cloud.google.com/artifacts?project=communi-team-dev](https://console.cloud.google.com/artifacts?project=communi-team-dev)
+* **Cloud Build – History (if using Cloud Build)**
+  [https://console.cloud.google.com/cloud-build/builds?project=communi-team-dev](https://console.cloud.google.com/cloud-build/builds?project=communi-team-dev)
+* **Secret Manager**
+  [https://console.cloud.google.com/security/secret-manager?project=communi-team-dev](https://console.cloud.google.com/security/secret-manager?project=communi-team-dev)
+* **GitHub Repository (Wundr fork)**
+  <REPO_URL_OF_THIS_FORK>
+* **Upstream Project Docs**
+  [https://github.com/lfnovo/open-notebook](https://github.com/lfnovo/open-notebook)
 
-**Why Choose Open Notebook?**
-- 🔒 **Privacy First**: Your sensitive research stays completely private
-- 💰 **Cost Control**: Choose cheaper AI providers or run locally with Ollama
-- 🎙️ **Better Podcasts**: Full script control and multi-speaker flexibility vs limited 2-speaker deep-dive format
-- 🔧 **Unlimited Customization**: Modify, extend, and integrate as needed
-- 🌐 **No Vendor Lock-in**: Switch providers, deploy anywhere, own your data
+> If you don’t see the resources above, ask for IAM access to **`communi-team-dev`**.
 
-### Built With
+---
 
-[![Python][Python]][Python-url] [![Next.js][Next.js]][Next-url] [![React][React]][React-url] [![SurrealDB][SurrealDB]][SurrealDB-url] [![LangChain][LangChain]][LangChain-url]
+## 🛠 Tech Stack (fork)
 
-## 🚀 Quick Start
+* **Frontend**: Next.js / React (served at port **8502** inside container)
+* **API**: FastAPI (port **5055**)
+* **DB**: SurrealDB (embedded in single-container image; external DB optional)
+* **Container**: Docker image (community image or Wundr image built from this fork)
+* **Hosting**: Google Cloud Run (HTTP, auto-scaling, SSL, custom domains optional)
 
-**Docker Images Available:**
-- **Docker Hub**: `lfnovo/open_notebook:v1-latest-single`
-- **GitHub Container Registry**: `ghcr.io/lfnovo/open-notebook:v1-latest-single`
+---
 
-Both registries contain identical images - choose whichever you prefer!
+## 🚀 Developer Setup
 
-### Choose Your Setup:
-
-<table>
-<tr>
-<td width="50%">
-
-#### 🏠 **Local Machine Setup**
-Perfect if Docker runs on the **same computer** where you'll access Open Notebook.
+### 1) Clone & install dev tooling
 
 ```bash
-mkdir open-notebook && cd open-notebook
-
-docker run -d \
-  --name open-notebook \
-  -p 8502:8502 -p 5055:5055 \
-  -v ./notebook_data:/app/data \
-  -v ./surreal_data:/mydata \
-  -e OPENAI_API_KEY=your_key_here \
-  -e SURREAL_URL="ws://localhost:8000/rpc" \
-  -e SURREAL_USER="root" \
-  -e SURREAL_PASSWORD="root" \
-  -e SURREAL_NAMESPACE="open_notebook" \
-  -e SURREAL_DATABASE="production" \
-  lfnovo/open_notebook:v1-latest-single
+git clone <REPO_URL_OF_THIS_FORK>
+cd open-notebook
 ```
 
-**Access at:** http://localhost:8502
+> For **local Docker** work you don’t need Node/Python locally; for **source edits** you’ll want the usual Node/Python toolchain as per upstream docs.
 
-</td>
-<td width="50%">
+### 2) Create environment file
 
-#### 🌐 **Remote Server Setup**
-Use this for servers, Raspberry Pi, NAS, Proxmox, or any remote machine.
+Copy and adapt `.env.example` (create one if not present) to `.env`:
 
-```bash
-mkdir open-notebook && cd open-notebook
+```
+# AI providers (pick what you use)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=
+GOOGLE_API_KEY=
+ELEVENLABS_API_KEY=
 
-docker run -d \
-  --name open-notebook \
-  -p 8502:8502 -p 5055:5055 \
-  -v ./notebook_data:/app/data \
-  -v ./surreal_data:/mydata \
-  -e OPENAI_API_KEY=your_key_here \
-  -e API_URL=http://YOUR_SERVER_IP:5055 \
-  -e SURREAL_URL="ws://localhost:8000/rpc" \
-  -e SURREAL_USER="root" \
-  -e SURREAL_PASSWORD="root" \
-  -e SURREAL_NAMESPACE="open_notebook" \
-  -e SURREAL_DATABASE="production" \
-  lfnovo/open_notebook:v1-latest-single
+# App / API
+API_URL=http://localhost:5055
+SURREAL_URL=ws://localhost:8000/rpc
+SURREAL_USER=root
+SURREAL_PASSWORD=root
+SURREAL_NAMESPACE=open_notebook
+SURREAL_DATABASE=development
 ```
 
-**Replace `YOUR_SERVER_IP`** with your server's IP (e.g., `192.168.1.100`) or domain
+> **Ports are critical:** 8502 (web) and 5055 (API). For remote access, **API_URL must point to the server’s address**, not `localhost`.
 
-**Access at:** http://YOUR_SERVER_IP:8502
+### 3) Run locally (Docker Compose – recommended)
 
-</td>
-</tr>
-</table>
-
-> **⚠️ Critical Setup Notes:**
->
-> **Both ports are required:**
-> - **Port 8502**: Web interface (what you see in your browser)
-> - **Port 5055**: API backend (required for the app to function)
->
-> **API_URL must match how YOU access the server:**
-> - ✅ Access via `http://192.168.1.100:8502` → set `API_URL=http://192.168.1.100:5055`
-> - ✅ Access via `http://myserver.local:8502` → set `API_URL=http://myserver.local:5055`
-> - ❌ Don't use `localhost` for remote servers - it won't work from other devices!
-
-### Using Docker Compose (Recommended for Easy Management)
-
-Create a `docker-compose.yml` file:
+Create `docker-compose.yml` at repo root:
 
 ```yaml
 services:
   open_notebook:
-    image: lfnovo/open_notebook:v1-latest-single
-    # Or use: ghcr.io/lfnovo/open-notebook:v1-latest-single
+    image: ghcr.io/lfnovo/open-notebook:v1-latest-single
+    # Replace with Wundr image once we publish our build:
+    # image: europe-west1-docker.pkg.dev/communi-team-dev/containers/open-notebook:v1
     ports:
-      - "8502:8502"  # Web UI
-      - "5055:5055"  # API (required!)
-    environment:
-      - OPENAI_API_KEY=your_key_here
-      # For remote access, uncomment and set your server IP/domain:
-      # - API_URL=http://192.168.1.100:5055
-      # Database connection (required for single-container)
-      - SURREAL_URL=ws://localhost:8000/rpc
-      - SURREAL_USER=root
-      - SURREAL_PASSWORD=root
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=production
+      - "8502:8502"
+      - "5055:5055"
+    env_file:
+      - ./.env
     volumes:
       - ./notebook_data:/app/data
       - ./surreal_data:/mydata
-    restart: always
+    restart: unless-stopped
 ```
 
-Start with: `docker compose up -d`
+Run:
 
-**What gets created:**
-```
-open-notebook/
-├── docker-compose.yml # Your configuration
-├── notebook_data/     # Your notebooks and research content
-└── surreal_data/      # Database files
-```
-
-### 🆘 Quick Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| **"Unable to connect to server"** | Set `API_URL` environment variable to match how you access the server (see remote setup above) |
-| **Blank page or errors** | Ensure BOTH ports (8502 and 5055) are exposed in your docker command |
-| **Works on server but not from other computers** | Don't use `localhost` in `API_URL` - use your server's actual IP address |
-| **"404" or "config endpoint" errors** | Don't add `/api` to `API_URL` - use just `http://your-ip:5055` |
-| **Still having issues?** | Check our [5-minute troubleshooting guide](docs/troubleshooting/quick-fixes.md) or [join Discord](https://discord.gg/37XJPXfz2w) |
-
-### How Open Notebook Works
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Your Browser                                           │
-│  Access: http://your-server-ip:8502                     │
-└────────────────┬────────────────────────────────────────┘
-                 │
-                 ▼
-         ┌───────────────┐
-         │   Port 8502   │  ← Next.js Frontend (what you see)
-         │   Frontend    │    Also proxies API requests internally!
-         └───────┬───────┘
-                 │ proxies /api/* requests ↓
-                 ▼
-         ┌───────────────┐
-         │   Port 5055   │  ← FastAPI Backend (handles requests)
-         │     API       │
-         └───────┬───────┘
-                 │
-                 ▼
-         ┌───────────────┐
-         │   SurrealDB   │  ← Database (internal, auto-configured)
-         │   (Port 8000) │
-         └───────────────┘
-```
-
-**Key Points:**
-- **v1.1+**: Next.js automatically proxies `/api/*` requests to the backend, simplifying reverse proxy setup
-- Your browser loads the frontend from port 8502
-- The frontend needs to know where to find the API - when accessing remotely, set: `API_URL=http://your-server-ip:5055`
-- **Behind reverse proxy?** You only need to proxy to port 8502 now! See [Reverse Proxy Guide](docs/deployment/reverse-proxy.md)
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=lfnovo/open-notebook&type=date&legend=top-left)](https://www.star-history.com/#lfnovo/open-notebook&type=date&legend=top-left)
-
-### 🛠️ Full Installation
-For development or customization:
 ```bash
-git clone https://github.com/lfnovo/open-notebook
-cd open-notebook
-make start-all
+docker compose up -d
 ```
 
-### 📖 Need Help?
-- **🤖 AI Installation Assistant**: We have a [CustomGPT built to help you install Open Notebook](https://chatgpt.com/g/g-68776e2765b48191bd1bae3f30212631-open-notebook-installation-assistant) - it will guide you through each step!
-- **New to Open Notebook?** Start with our [Getting Started Guide](docs/getting-started/index.md)
-- **Need installation help?** Check our [Installation Guide](docs/getting-started/installation.md)
-- **Want to see it in action?** Try our [Quick Start Tutorial](docs/getting-started/quick-start.md)
+Visit: [http://localhost:8502](http://localhost:8502)
 
-## Provider Support Matrix
+---
 
-Thanks to the [Esperanto](https://github.com/lfnovo/esperanto) library, we support this providers out of the box!
+## ☁️ Cloud Deployment (Google Cloud Run)
 
-| Provider     | LLM Support | Embedding Support | Speech-to-Text | Text-to-Speech |
-|--------------|-------------|------------------|----------------|----------------|
-| OpenAI       | ✅          | ✅               | ✅             | ✅             |
-| Anthropic    | ✅          | ❌               | ❌             | ❌             |
-| Groq         | ✅          | ❌               | ✅             | ❌             |
-| Google (GenAI) | ✅          | ✅               | ❌             | ✅             |
-| Vertex AI    | ✅          | ✅               | ❌             | ✅             |
-| Ollama       | ✅          | ✅               | ❌             | ❌             |
-| Perplexity   | ✅          | ❌               | ❌             | ❌             |
-| ElevenLabs   | ❌          | ❌               | ✅             | ✅             |
-| Azure OpenAI | ✅          | ✅               | ❌             | ❌             |
-| Mistral      | ✅          | ✅               | ❌             | ❌             |
-| DeepSeek     | ✅          | ❌               | ❌             | ❌             |
-| Voyage       | ❌          | ✅               | ❌             | ❌             |
-| xAI          | ✅          | ❌               | ❌             | ❌             |
-| OpenRouter   | ✅          | ❌               | ❌             | ❌             |
-| OpenAI Compatible* | ✅          | ❌               | ❌             | ❌             |
+We deploy **one container** that serves both **Next.js (8502)** and **FastAPI (5055)** internally. Cloud Run exposes **one HTTPS endpoint** (we route web to 8502; the app internally proxies `/api/*` to 5055).
 
-*Supports LM Studio and any OpenAI-compatible endpoint
+### Option A — Build & deploy with **Cloud Build** (no local Docker needed)
 
-## ✨ Key Features
+1. **Enable services** (one-off):
 
-### Core Capabilities
-- **🔒 Privacy-First**: Your data stays under your control - no cloud dependencies
-- **🎯 Multi-Notebook Organization**: Manage multiple research projects seamlessly
-- **📚 Universal Content Support**: PDFs, videos, audio, web pages, Office docs, and more
-- **🤖 Multi-Model AI Support**: 16+ providers including OpenAI, Anthropic, Ollama, Google, LM Studio, and more
-- **🎙️ Professional Podcast Generation**: Advanced multi-speaker podcasts with Episode Profiles
-- **🔍 Intelligent Search**: Full-text and vector search across all your content
-- **💬 Context-Aware Chat**: AI conversations powered by your research materials
-- **📝 AI-Assisted Notes**: Generate insights or write notes manually
+   * Artifact Registry, Cloud Build, Cloud Run, Secret Manager (as needed)
 
-### Advanced Features
-- **⚡ Reasoning Model Support**: Full support for thinking models like DeepSeek-R1 and Qwen3
-- **🔧 Content Transformations**: Powerful customizable actions to summarize and extract insights
-- **🌐 Comprehensive REST API**: Full programmatic access for custom integrations [![API Docs](https://img.shields.io/badge/API-Documentation-blue?style=flat-square)](http://localhost:5055/docs)
-- **🔐 Optional Password Protection**: Secure public deployments with authentication
-- **📊 Fine-Grained Context Control**: Choose exactly what to share with AI models
-- **📎 Citations**: Get answers with proper source citations
+2. **Submit a build** (from repo root):
 
-### Three-Column Interface
-1. **Sources**: Manage all your research materials
-2. **Notes**: Create manual or AI-generated notes
-3. **Chat**: Converse with AI using your content as context
+```bash
+gcloud builds submit \
+  --project=communi-team-dev \
+  --tag=europe-west1-docker.pkg.dev/communi-team-dev/containers/open-notebook:v1
+```
 
-[![Check out our podcast sample](https://img.youtube.com/vi/D-760MlGwaI/0.jpg)](https://www.youtube.com/watch?v=D-760MlGwaI)
+3. **Deploy to Cloud Run**:
 
-## 📚 Documentation
+```bash
+gcloud run deploy open-notebook \
+  --project=communi-team-dev \
+  --region=europe-west1 \
+  --image=europe-west1-docker.pkg.dev/communi-team-dev/containers/open-notebook:v1 \
+  --platform=managed \
+  --allow-unauthenticated \
+  --port=8502 \
+  --memory=2Gi \
+  --min-instances=0 \
+  --max-instances=3 \
+  --set-env-vars=API_URL=/api,SURREAL_URL=ws://localhost:8000/rpc,SURREAL_USER=root,SURREAL_PASSWORD=root,SURREAL_NAMESPACE=open_notebook,SURREAL_DATABASE=production
+```
 
-### Getting Started
-- **[📖 Introduction](docs/getting-started/introduction.md)** - Learn what Open Notebook offers
-- **[⚡ Quick Start](docs/getting-started/quick-start.md)** - Get up and running in 5 minutes
-- **[🔧 Installation](docs/getting-started/installation.md)** - Comprehensive setup guide
-- **[🎯 Your First Notebook](docs/getting-started/first-notebook.md)** - Step-by-step tutorial
+> We keep `API_URL=/api` in Cloud Run (frontend proxy). If you need a public API endpoint separately, expose 5055 via an additional service or a path mapping behind a proxy (Nginx/Cloud Run sidecar pattern).
 
-### User Guide
-- **[📱 Interface Overview](docs/user-guide/interface-overview.md)** - Understanding the layout
-- **[📚 Notebooks](docs/user-guide/notebooks.md)** - Organizing your research
-- **[📄 Sources](docs/user-guide/sources.md)** - Managing content types
-- **[📝 Notes](docs/user-guide/notes.md)** - Creating and managing notes
-- **[💬 Chat](docs/user-guide/chat.md)** - AI conversations
-- **[🔍 Search](docs/user-guide/search.md)** - Finding information
+4. **Secrets** (recommended): store provider keys in **Secret Manager** and mount/inject them:
 
-### Advanced Topics
-- **[🎙️ Podcast Generation](docs/features/podcasts.md)** - Create professional podcasts
-- **[🔧 Content Transformations](docs/features/transformations.md)** - Customize content processing
-- **[🤖 AI Models](docs/features/ai-models.md)** - AI model configuration
-- **[🔧 REST API Reference](docs/development/api-reference.md)** - Complete API documentation
-- **[🔐 Security](docs/deployment/security.md)** - Password protection and privacy
-- **[🚀 Deployment](docs/deployment/index.md)** - Complete deployment guides for all scenarios
+```bash
+gcloud run services update open-notebook \
+  --project=communi-team-dev \
+  --region=europe-west1 \
+  --set-secrets=OPENAI_API_KEY=OPENAI_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,ELEVENLABS_API_KEY=ELEVENLABS_API_KEY:latest
+```
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+### Option B — Build locally, push, then deploy
 
-## 🗺️ Roadmap
+```bash
+docker build -t europe-west1-docker.pkg.dev/communi-team-dev/containers/open-notebook:v1 .
+gcloud auth configure-docker europe-west1-docker.pkg.dev
+docker push europe-west1-docker.pkg.dev/communi-team-dev/containers/open-notebook:v1
 
-### Upcoming Features
-- **Live Front-End Updates**: Real-time UI updates for smoother experience
-- **Async Processing**: Faster UI through asynchronous content processing
-- **Cross-Notebook Sources**: Reuse research materials across projects
-- **Bookmark Integration**: Connect with your favorite bookmarking apps
+gcloud run deploy open-notebook \
+  --project=communi-team-dev \
+  --region=europe-west1 \
+  --image=europe-west1-docker.pkg.dev/communi-team-dev/containers/open-notebook:v1 \
+  --platform=managed --port=8502 --allow-unauthenticated
+```
 
-### Recently Completed ✅
-- **Next.js Frontend**: Modern React-based frontend with improved performance
-- **Comprehensive REST API**: Full programmatic access to all functionality
-- **Multi-Model Support**: 16+ AI providers including OpenAI, Anthropic, Ollama, LM Studio
-- **Advanced Podcast Generator**: Professional multi-speaker podcasts with Episode Profiles
-- **Content Transformations**: Powerful customizable actions for content processing
-- **Enhanced Citations**: Improved layout and finer control for source citations
-- **Multiple Chat Sessions**: Manage different conversations within notebooks
+---
 
-See the [open issues](https://github.com/lfnovo/open-notebook/issues) for a full list of proposed features and known issues.
+## 🔁 CI/CD Pipelines
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+You can use **GitHub Actions** or **Azure DevOps**; pick one per repo to avoid drift. Both patterns below produce the same result: build → push to Artifact Registry → deploy to Cloud Run.
 
+### Option 1 — GitHub Actions
 
-## 🤝 Community & Contributing
+**Secrets (GitHub → Settings → Secrets and variables → Actions):**
 
-### Join the Community
-- 💬 **[Discord Server](https://discord.gg/37XJPXfz2w)** - Get help, share ideas, and connect with other users
-- 🐛 **[GitHub Issues](https://github.com/lfnovo/open-notebook/issues)** - Report bugs and request features
-- ⭐ **Star this repo** - Show your support and help others discover Open Notebook
+* `GCP_SA_KEY` → JSON for a service account with roles:
+  Cloud Run Admin, Cloud Build Editor, Artifact Registry Writer, Service Account User
+* `GCP_PROJECT_ID` → `communi-team-dev`
+* `GCP_REGION` → `europe-west1`
+* `AR_REPO` → `containers` (or the repo name you created)
 
-### Contributing
-We welcome contributions! We're especially looking for help with:
-- **Frontend Development**: Help improve our modern Next.js/React UI
-- **Testing & Bug Fixes**: Make Open Notebook more robust
-- **Feature Development**: Build the coolest research tool together
-- **Documentation**: Improve guides and tutorials
+**`.github/workflows/deploy.yml`**
 
-**Current Tech Stack**: Python, FastAPI, Next.js, React, SurrealDB
-**Future Roadmap**: Real-time updates, enhanced async processing
+```yaml
+name: Build & Deploy (Cloud Run)
 
-See our [Contributing Guide](CONTRIBUTING.md) for detailed information on how to get started.
+on:
+  push:
+    branches: [ develop, main ]
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-## 📄 License
+      - uses: google-github-actions/setup-gcloud@v2
 
-Open Notebook is MIT licensed. See the [LICENSE](LICENSE) file for details.
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 
-## 📞 Contact
+      - name: Build image
+        run: |
+          IMAGE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.AR_REPO }}/open-notebook:${{ github.sha }}"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          docker build -t "$IMAGE" .
 
-**Luis Novo** - [@lfnovo](https://twitter.com/lfnovo)
+      - name: Push image
+        run: docker push "$IMAGE"
 
-**Community Support**:
-- 💬 [Discord Server](https://discord.gg/37XJPXfz2w) - Get help, share ideas, and connect with users
-- 🐛 [GitHub Issues](https://github.com/lfnovo/open-notebook/issues) - Report bugs and request features
-- 🌐 [Website](https://www.open-notebook.ai) - Learn more about the project
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy open-notebook \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --image="$IMAGE" \
+            --platform=managed \
+            --allow-unauthenticated \
+            --port=8502 \
+            --memory=2Gi \
+            --min-instances=0 \
+            --max-instances=3
+```
 
-## 🙏 Acknowledgments
+> Add a second job gated on `main` if you want a separate **prod** service name (`open-notebook-prod`) and domain.
 
-Open Notebook is built on the shoulders of amazing open-source projects:
+### Option 2 — Azure DevOps (classic YAML)
 
-* **[Podcast Creator](https://github.com/lfnovo/podcast-creator)** - Advanced podcast generation capabilities
-* **[Surreal Commands](https://github.com/lfnovo/surreal-commands)** - Background job processing
-* **[Content Core](https://github.com/lfnovo/content-core)** - Content processing and management
-* **[Esperanto](https://github.com/lfnovo/esperanto)** - Multi-provider AI model abstraction
-* **[Docling](https://github.com/docling-project/docling)** - Document processing and parsing
+**Service connection:** create a GCP service account JSON and store as a **Secure File** or variable secret.
+**Pipeline variables:** `GCP_PROJECT_ID`, `GCP_REGION`, `AR_REPO`.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+`azure-pipelines.yml`
 
+```yaml
+trigger:
+  branches: { include: [ develop, main ] }
 
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/lfnovo/open-notebook.svg?style=for-the-badge
-[contributors-url]: https://github.com/lfnovo/open-notebook/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/lfnovo/open-notebook.svg?style=for-the-badge
-[forks-url]: https://github.com/lfnovo/open-notebook/network/members
-[stars-shield]: https://img.shields.io/github/stars/lfnovo/open-notebook.svg?style=for-the-badge
-[stars-url]: https://github.com/lfnovo/open-notebook/stargazers
-[issues-shield]: https://img.shields.io/github/issues/lfnovo/open-notebook.svg?style=for-the-badge
-[issues-url]: https://github.com/lfnovo/open-notebook/issues
-[license-shield]: https://img.shields.io/github/license/lfnovo/open-notebook.svg?style=for-the-badge
-[license-url]: https://github.com/lfnovo/open-notebook/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/lfnovo
-[product-screenshot]: images/screenshot.png
-[Next.js]: https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white
-[Next-url]: https://nextjs.org/
-[React]: https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black
-[React-url]: https://reactjs.org/
-[Python]: https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white
-[Python-url]: https://www.python.org/
-[LangChain]: https://img.shields.io/badge/LangChain-3A3A3A?style=for-the-badge&logo=chainlink&logoColor=white
-[LangChain-url]: https://www.langchain.com/
-[SurrealDB]: https://img.shields.io/badge/SurrealDB-FF5E00?style=for-the-badge&logo=databricks&logoColor=white
-[SurrealDB-url]: https://surrealdb.com/
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+
+  - task: Bash@3
+    displayName: 'Install gcloud & auth'
+    inputs:
+      targetType: inline
+      script: |
+        curl -sSL https://sdk.cloud.google.com | bash > /dev/null
+        source "$HOME/google-cloud-sdk/path.bash.inc"
+        echo "$GCP_SA_KEY" > /tmp/sa.json
+        gcloud auth activate-service-account --key-file=/tmp/sa.json
+        gcloud --quiet auth configure-docker europe-west1-docker.pkg.dev
+
+    env:
+      GCP_SA_KEY: $(GCP_SA_KEY_JSON)  # set as secret variable
+
+  - task: Bash@3
+    displayName: 'Build & push image'
+    inputs:
+      targetType: inline
+      script: |
+        IMAGE="europe-west1-docker.pkg.dev/$(GCP_PROJECT_ID)/$(AR_REPO)/open-notebook:$(Build.SourceVersion)"
+        echo "Using image: $IMAGE"
+        docker build -t "$IMAGE" .
+        docker push "$IMAGE"
+        echo "##vso[task.setvariable variable=IMAGE]$IMAGE"
+
+  - task: Bash@3
+    displayName: 'Deploy Cloud Run'
+    inputs:
+      targetType: inline
+      script: |
+        source "$HOME/google-cloud-sdk/path.bash.inc"
+        gcloud run deploy open-notebook \
+          --project=$(GCP_PROJECT_ID) \
+          --region=$(GCP_REGION) \
+          --image="$(IMAGE)" \
+          --platform=managed \
+          --allow-unauthenticated \
+          --port=8502 \
+          --memory=2Gi \
+          --min-instances=0 \
+          --max-instances=3
+```
+
+---
+
+## 🔐 Secrets & Config (Wundr conventions)
+
+We prefer **Secret Manager** for production keys, referenced by Cloud Run env **or** mounted as files.
+Local development uses `.env` (never commit).
+
+Minimum keys commonly used:
+
+* `OPENAI_API_KEY` (or alternative providers)
+* `ELEVENLABS_API_KEY` (podcasts)
+* `GOOGLE_API_KEY` / Vertex credentials (if using Google GenAI)
+* `API_URL` (Cloud Run: use `/api`; remote servers: `https://host:5055`)
+* `SURREAL_*` (use upstream defaults unless externalising DB)
+
+---
+
+## 🧭 Branching & Environments
+
+* `develop` → **staging** deployment on Cloud Run (`open-notebook`)
+* `main` → **production** deployment later (`open-notebook-prod`)
+* Feature branches → PRs, review, merge
+
+> Keep PRs focused. Use **Conventional Commits** (`feat:`, `fix:`, `chore:`) for clean changelogs.
+
+---
+
+## 🧰 Troubleshooting (quick wins)
+
+| Symptom                               | Likely cause               | Fix                                                                              |
+| ------------------------------------- | -------------------------- | -------------------------------------------------------------------------------- |
+| Web loads, actions fail               | API not reachable          | Ensure **both** ports mapped in local Docker. In Cloud Run, keep `API_URL=/api`. |
+| Works on server but not other devices | `API_URL` uses `localhost` | Use server IP or domain (e.g. `http://192.168.1.20:5055`) for remote setups.     |
+| 404s on `/api`                        | Proxy not applied          | Stay on the single-container image; don’t add `/api` to `API_URL` in Cloud Run.  |
+| High cold-start latency               | Min instances = 0          | Raise `--min-instances=1` for steadier performance.                              |
+
+---
+
+## 📚 Upstream Documentation (read these)
+
+* **Getting Started:** `docs/getting-started/index.md`
+* **Deployment:** `docs/deployment/index.md`
+* **Troubleshooting:** `docs/troubleshooting/quick-fixes.md`
+* **Provider Support Matrix:** see upstream README
+
+We periodically rebase from upstream to keep in step. If you plan a large change, open an issue in our fork first.
+
+---
+
+## 👥 Team Roles & Access (Wundr)
+
+| Role      | Access                                                        |
+| --------- | ------------------------------------------------------------- |
+| Tech Lead | Approves PRs, manages releases, Cloud Run admin               |
+| Devs      | Create feature branches, open PRs, can trigger staging deploy |
+| Ops       | Secret Manager, IAM, domain & SSL, incident response          |
+
+For access requests, post in **#platform-ops**.
+
+---
+
+## 📄 Licence
+
+* **Upstream:** MIT (see upstream `LICENSE`)
+* **Fork additions:** © Wundr Space Ltd — 2025. All rights reserved unless otherwise stated.
