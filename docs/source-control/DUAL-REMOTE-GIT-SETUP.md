@@ -19,8 +19,9 @@ This allows you to pull updates or branches from GitHub as needed, while ensurin
 ## One-Time Setup
 
 1. **Check existing remotes**
-   ```bash
-   git remote -v
+
+```bash
+git remote -v
 ````
 
 You should see something like:
@@ -32,30 +33,30 @@ origin  https://dev.azure.com/wundr/Communi.Team/_git/open-notebook (push)
 
 2. **Add GitHub as a second remote (pull-only)**
 
-   ```bash
-   git remote add github https://github.com/Wundr-Space/open-notebook
-   ```
+```bash
+git remote add github https://github.com/Wundr-Space/open-notebook
+```
 
 3. **Ensure all pushes go to ADO**
 
-   ```bash
-   git config remote.pushDefault origin
-   ```
+```bash
+git config remote.pushDefault origin
+```
 
 4. *(Optional but recommended)* **Prevent accidental pushes to GitHub**
 
-   ```bash
-   mkdir -p .git/hooks
-   cat > .git/hooks/pre-push <<'SH'
-   #!/usr/bin/env bash
-   remote_name="$1"
-   if [ "$remote_name" = "github" ]; then
-     echo "❌ Blocked: pushing to 'github' is disabled for this repository."
-     exit 1
-   fi
-   SH
-   chmod +x .git/hooks/pre-push
-   ```
+```bash
+mkdir -p .git/hooks
+cat > .git/hooks/pre-push <<'SH'
+#!/usr/bin/env bash
+remote_name="$1"
+if [ "$remote_name" = "github" ]; then
+   echo "❌ Blocked: pushing to 'github' is disabled for this repository."
+   exit 1
+fi
+SH
+chmod +x .git/hooks/pre-push
+```
 
 ---
 
