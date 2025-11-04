@@ -59,7 +59,7 @@ uv sync
 docker run -d \
   --name surrealdb-dev \
   -p 8000:8000 \
-  surrealdb/surrealdb:v1-latest \
+  surrealdb/surrealdb:latest \
   start --log trace --user root --pass root memory
 ```
 
@@ -113,6 +113,10 @@ cd ..
 ### Step 6: Start the Application
 
 #### Option A: Full Stack with Make
+
+(On a windows machine you need to 
+  - install choclaty from an elevated powershell terminal, https://chocolatey.org/install
+  - restart your machine, then install make from a powershell command line choco install make)
 
 ```bash
 # Start all services (recommended for development)
