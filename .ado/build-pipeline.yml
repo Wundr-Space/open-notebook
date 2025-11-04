@@ -175,12 +175,10 @@ stages:
                 Build URI: $(Build.BuildUri)
                 Artifact: $(CLOUD_RUN_SERVICE):$(imageTag)
                 "@
-                $body = @{
-                  "fields" = @{
-                    @{ "op" = "add"; "path" = "/fields/System.Title"; "value" = $title },
-                    @{ "op" = "add"; "path" = "/fields/System.Description"; "value" = $desc }
-                  }
-                } | ConvertTo-Json -Depth 3
+                $body = @(
+                  @{ op => "add"; path => "/fields/System.Title"; value => $title },
+                  @{ op => "add"; path => "/fields/System.Description"; value => $desc }
+                ) | ConvertTo-Json -Depth 3
 
                 $headers = @{
                   Authorization = "Bearer $(System.AccessToken)"
