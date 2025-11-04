@@ -1,5 +1,3 @@
-Perfect — here’s your tailored version of the README with your actual remotes in place 👇
-
 # Dual-Remote Git Setup  
 
 ### Push to Azure DevOps (ADO), Pull from GitHub
