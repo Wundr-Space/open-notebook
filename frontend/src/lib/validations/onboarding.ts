@@ -54,7 +54,7 @@ export const instanceConfigurationSchema = z.object({
     ),
   region: z.string().min(1, 'Please select a region'),
   aiProvider: z.enum(['ollama', 'openai', 'anthropic'], {
-    required_error: 'Please select an AI provider',
+    message: 'Please select an AI provider',
   }),
   enablePublicAccess: z.boolean(),
   storageSize: z.string().min(1, 'Please select a storage size'),
