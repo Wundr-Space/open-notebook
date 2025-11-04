@@ -47,146 +47,170 @@ stages:
           - checkout: self
             persistCredentials: true
 
-          - task: Bash@3
-            displayName: 'Show Build Information'
-            inputs:
-              targetType: 'inline'
-              script: |
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "🔨 Building Open Notebook"
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "Environment:  ${{ parameters.environment }}"
-                echo "Project:      $(GCP_PROJECT_ID)"
-                echo "Region:       $(GCP_REGION)"
-                echo "Service:      $(CLOUD_RUN_SERVICE)"
-                echo "Build ID:     $(Build.BuildId)"
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          # - task: Bash@3
+          #   displayName: 'Show Build Information'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          #       echo "🔨 Building Open Notebook"
+          #       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          #       echo "Environment:  ${{ parameters.environment }}"
+          #       echo "Project:      $(GCP_PROJECT_ID)"
+          #       echo "Region:       $(GCP_REGION)"
+          #       echo "Service:      $(CLOUD_RUN_SERVICE)"
+          #       echo "Build ID:     $(Build.BuildId)"
+          #       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          - task: Bash@3
-            displayName: 'Install and Configure gcloud CLI'
-            inputs:
-              targetType: 'inline'
-              script: |
-                echo "Installing Google Cloud SDK..."
-                curl https://sdk.cloud.google.com | bash > /dev/null
-                source ${HOME}/google-cloud-sdk/path.bash.inc
-                echo "##vso[task.prependpath]${HOME}/google-cloud-sdk/bin"
+          # - task: Bash@3
+          #   displayName: 'Install and Configure gcloud CLI'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       echo "Installing Google Cloud SDK..."
+          #       curl https://sdk.cloud.google.com | bash > /dev/null
+          #       source ${HOME}/google-cloud-sdk/path.bash.inc
+          #       echo "##vso[task.prependpath]${HOME}/google-cloud-sdk/bin"
 
-          - task: Bash@3
-            displayName: 'Authenticate to Google Cloud'
-            inputs:
-              targetType: 'inline'
-              script: |
-                # Create key file from secret variable
-                echo '$(GCP_SA_KEY)' > ${BUILD_SOURCESDIRECTORY}/gcp-key.json
+          # - task: Bash@3
+          #   displayName: 'Authenticate to Google Cloud'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       # Create key file from secret variable
+          #       echo '$(GCP_SA_KEY)' > ${BUILD_SOURCESDIRECTORY}/gcp-key.json
 
-                # Authenticate
-                gcloud auth activate-service-account --key-file=${BUILD_SOURCESDIRECTORY}/gcp-key.json
+          #       # Authenticate
+          #       gcloud auth activate-service-account --key-file=${BUILD_SOURCESDIRECTORY}/gcp-key.json
 
-                # Set project
-                gcloud config set project $(GCP_PROJECT_ID)
+          #       # Set project
+          #       gcloud config set project $(GCP_PROJECT_ID)
 
-                echo "✓ Authenticated to GCP project: $(GCP_PROJECT_ID)"
+          #       echo "✓ Authenticated to GCP project: $(GCP_PROJECT_ID)"
 
-          - task: Bash@3
-            displayName: 'Configure Docker for Artifact Registry'
-            inputs:
-              targetType: 'inline'
-              script: |
-                gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
-                echo "✓ Docker configured for Artifact Registry"
+          # - task: Bash@3
+          #   displayName: 'Configure Docker for Artifact Registry'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       gcloud auth configure-docker $(GCP_REGION)-docker.pkg.dev --quiet
+          #       echo "✓ Docker configured for Artifact Registry"
 
-          - task: Bash@3
-            displayName: 'Extract Version'
-            inputs:
-              targetType: 'inline'
-              script: |
-                VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2 || echo "1.0.0")
-                echo "##vso[task.setvariable variable=appVersion]$VERSION"
-                echo "Application Version: $VERSION"
+          # - task: Bash@3
+          #   displayName: 'Extract Version'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       VERSION=$(grep -m1 '^version = ' pyproject.toml | cut -d'"' -f2 || echo "1.0.0")
+          #       echo "##vso[task.setvariable variable=appVersion]$VERSION"
+          #       echo "Application Version: $VERSION"
 
-          - task: Docker@2
-            displayName: 'Build Docker Image'
-            inputs:
-              command: 'build'
-              Dockerfile: 'Dockerfile.single'
-              tags: |
-                $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)
-                $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(latestTag)
-                $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)
-              arguments: '--platform linux/amd64'
+          # - task: Docker@2
+          #   displayName: 'Build Docker Image'
+          #   inputs:
+          #     command: 'build'
+          #     Dockerfile: 'Dockerfile.single'
+          #     tags: |
+          #       $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)
+          #       $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(latestTag)
+          #       $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)
+          #     arguments: '--platform linux/amd64'
 
-          - task: Bash@3
-            displayName: 'Push Images to Artifact Registry'
-            inputs:
-              targetType: 'inline'
-              script: |
-                echo "Pushing images..."
-                docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)
-                docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(latestTag)
-                docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)
-                echo "✓ All images pushed successfully"
+          # - task: Bash@3
+          #   displayName: 'Push Images to Artifact Registry'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       echo "Pushing images..."
+          #       docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)
+          #       docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(latestTag)
+          #       docker push $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)
+          #       echo "✓ All images pushed successfully"
 
-          - task: Bash@3
-            displayName: 'Clean up credentials'
-            condition: always()
-            inputs:
-              targetType: 'inline'
-              script: |
-                rm -f ${BUILD_SOURCESDIRECTORY}/gcp-key.json
+          # - task: Bash@3
+          #   displayName: 'Clean up credentials'
+          #   condition: always()
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       rm -f ${BUILD_SOURCESDIRECTORY}/gcp-key.json
 
-          - task: Bash@3
-            displayName: 'Build Summary'
-            inputs:
-              targetType: 'inline'
-              script: |
-                echo ""
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo "✓ Build Complete!"
-                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-                echo ""
-                echo "Images pushed:"
-                echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)"
-                echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):latest"
-                echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)"
-                echo ""
-                echo "Ready to deploy!"
-                echo ""
+          # - task: Bash@3
+          #   displayName: 'Build Summary'
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       echo ""
+          #       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          #       echo "✓ Build Complete!"
+          #       echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          #       echo ""
+          #       echo "Images pushed:"
+          #       echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(imageTag)"
+          #       echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):latest"
+          #       echo "  • $(GCP_REGION)-docker.pkg.dev/$(GCP_PROJECT_ID)/open-notebook/$(CLOUD_RUN_SERVICE):$(appVersion)"
+          #       echo ""
+          #       echo "Ready to deploy!"
+          #       echo ""
 
-          - task: PublishBuildArtifacts@1
-            displayName: 'Publish Build Info'
-            inputs:
-              PathtoPublish: '$(Build.SourcesDirectory)'
-              ArtifactName: 'build-info'
-              publishLocation: 'Container'
+          # - task: PublishBuildArtifacts@1
+          #   displayName: 'Publish Build Info'
+          #   inputs:
+          #     PathtoPublish: '$(Build.SourcesDirectory)'
+          #     ArtifactName: 'build-info'
+          #     publishLocation: 'Container'
               
+          # - task: PowerShell@2
+          #   displayName: 'Create Bug in Azure Boards on Build Failure'
+          #   condition: always()
+          #   inputs:
+          #     targetType: 'inline'
+          #     script: |
+          #       $org = 'https://dev.azure.com/wundr'
+          #       $project = 'Communi.Team'
+          #       $title = "❌ Build failed: $(Build.DefinitionName) #$(Build.BuildNumber)"
+          #       $desc = @"
+          #       Environment: ${{ parameters.environment }}
+          #       Branch: $(Build.SourceBranchName)
+          #       Build URI: $(Build.BuildUri)
+          #       Artifact: $(CLOUD_RUN_SERVICE):$(imageTag)
+          #       "@
+          #       $body = @{
+          #         "fields" = @{
+          #           "System.Title" = $title
+          #           "System.Description" = $desc
+          #           "System.WorkItemType" = "Bug"
+          #         }
+          #       } | ConvertTo-Json -Depth 3
+
+          #       $headers = @{
+          #         Authorization = "Bearer $(System.AccessToken)"
+          #         "Content-Type" = "application/json"
+          #       }
+
+          #       $url = "$org/$project/_apis/wit/workitems/\$Bug?api-version=7.1"
+          #       Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body
           - task: PowerShell@2
             displayName: 'Create Bug in Azure Boards on Build Failure'
-            condition: failed()
+            condition: always()
             inputs:
               targetType: 'inline'
               script: |
                 $org = 'https://dev.azure.com/wundr'
                 $project = 'Communi.Team'
-                $title = "❌ Build failed: $(Build.DefinitionName) #$(Build.BuildNumber)"
-                $desc = @"
-                Environment: ${{ parameters.environment }}
-                Branch: $(Build.SourceBranchName)
-                Build URI: $(Build.BuildUri)
-                Artifact: $(CLOUD_RUN_SERVICE):$(imageTag)
-                "@
-                $body = @{
-                  "fields" = @{
-                    "System.Title" = $title
-                    "System.Description" = $desc
-                    "System.WorkItemType" = "Bug"
-                  }
-                } | ConvertTo-Json -Depth 3
+                $title = "🧪 Test Bug from Pipeline"
+                $desc = "This is a test bug created by a manual pipeline run."
+
+                $body = @(
+                  @{ "op" = "add"; "path" = "/fields/System.Title"; "value" = $title },
+                  @{ "op" = "add"; "path" = "/fields/System.Description"; "value" = $desc }
+                ) | ConvertTo-Json -Depth 3
 
                 $headers = @{
                   Authorization = "Bearer $(System.AccessToken)"
-                  "Content-Type" = "application/json"
+                  "Content-Type" = "application/json-patch+json"
                 }
 
-                $url = "$org/$project/_apis/wit/workitems/$`bug?api-version=7.0"
+                $url = "$org/$project/_apis/wit/workitems/\$Bug?api-version=7.1"
                 Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body
+
