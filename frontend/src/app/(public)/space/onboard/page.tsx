@@ -1,7 +1,23 @@
+'use client'
+
 import Link from 'next/link'
-import { Brain, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Brain, CheckCircle2 } from 'lucide-react'
+import { useOnboardingStore } from '@/lib/stores/onboarding-store'
+import { Step1OrganizationDetails } from '@/components/onboarding/Step1OrganizationDetails'
+import { Step2AdminAccount } from '@/components/onboarding/Step2AdminAccount'
+import { Step3InstanceConfiguration } from '@/components/onboarding/Step3InstanceConfiguration'
+import { Step4ReviewDeploy } from '@/components/onboarding/Step4ReviewDeploy'
+
+const steps = [
+  { number: 1, title: 'Organization', shortTitle: 'Org' },
+  { number: 2, title: 'Admin Account', shortTitle: 'Admin' },
+  { number: 3, title: 'Configuration', shortTitle: 'Config' },
+  { number: 4, title: 'Review & Deploy', shortTitle: 'Deploy' },
+]
 
 export default function OnboardingPage() {
+  const { currentStep } = useOnboardingStore()
+
   return (
     <div className="min-h-screen bg-[#0b1220] text-white">
       {/* Radial gradient background */}
@@ -21,70 +37,57 @@ export default function OnboardingPage() {
         </header>
 
         <main className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <div className="container mx-auto max-w-2xl px-6 py-16">
-            <div className="text-center space-y-6 mb-12">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/50 bg-emerald-300/10 px-3 py-1 text-xs uppercase tracking-wider text-emerald-300">
-                <CheckCircle2 className="h-3 w-3" />
-                <span>Phase 2 Coming Soon</span>
-              </div>
-              <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
-                Onboarding Wizard
-              </h1>
-              <p className="text-lg text-slate-300">
-                Multi-step wizard to provision your Knowledge Space
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-[#0e1526] p-8 md:p-10 space-y-8">
-              <h2 className="text-2xl font-semibold">What&apos;s Next:</h2>
-              <div className="space-y-6">
-                {[
-                  {
-                    step: 1,
-                    title: 'Organization Details',
-                    description: 'Name, domain, description'
-                  },
-                  {
-                    step: 2,
-                    title: 'Admin Account',
-                    description: 'Your admin credentials'
-                  },
-                  {
-                    step: 3,
-                    title: 'Instance Configuration',
-                    description: 'Subdomain and preferences'
-                  },
-                  {
-                    step: 4,
-                    title: 'Review & Deploy',
-                    description: 'Automated provisioning'
-                  }
-                ].map((item) => (
-                  <div key={item.step} className="flex gap-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-400 text-[#0b1220] text-sm font-semibold shrink-0">
-                      {item.step}
+          <div className="container mx-auto max-w-4xl px-6 py-16">
+            {/* Progress Steps */}
+            <div className="mb-12">
+              <div className="flex items-center justify-between">
+                {steps.map((step, index) => (
+                  <div key={step.number} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                          currentStep > step.number
+                            ? 'border-emerald-400 bg-emerald-400 text-[#0b1220]'
+                            : currentStep === step.number
+                              ? 'border-emerald-400 bg-gradient-to-br from-emerald-400 to-teal-400 text-[#0b1220]'
+                              : 'border-white/20 bg-[#0e1526] text-slate-400'
+                        }`}
+                      >
+                        {currentStep > step.number ? (
+                          <CheckCircle2 className="h-5 w-5" />
+                        ) : (
+                          <span className="text-sm font-semibold">{step.number}</span>
+                        )}
+                      </div>
+                      <div className="text-center">
+                        <div
+                          className={`text-xs md:text-sm font-medium transition-all ${
+                            currentStep >= step.number ? 'text-white' : 'text-slate-500'
+                          }`}
+                        >
+                          <span className="hidden sm:inline">{step.title}</span>
+                          <span className="sm:hidden">{step.shortTitle}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white">{item.title}</h3>
-                      <p className="text-sm text-slate-400">{item.description}</p>
-                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`flex-1 h-0.5 mx-2 transition-all ${
+                          currentStep > step.number ? 'bg-emerald-400' : 'bg-white/10'
+                        }`}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-              <Link href="/space">
-                <button className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-white/20 bg-white/5 text-white font-medium hover:bg-white/10 transition-all">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Landing Page
-                </button>
-              </Link>
-              <a href="mailto:contact@wundr.space">
-                <button className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 text-[#0b1220] font-semibold hover:opacity-90 transition-all shadow-lg shadow-emerald-400/10">
-                  Contact Us for Early Access
-                </button>
-              </a>
+            {/* Step Content */}
+            <div className="rounded-2xl border border-white/10 bg-[#0e1526] p-6 md:p-10">
+              {currentStep === 1 && <Step1OrganizationDetails />}
+              {currentStep === 2 && <Step2AdminAccount />}
+              {currentStep === 3 && <Step3InstanceConfiguration />}
+              {currentStep === 4 && <Step4ReviewDeploy />}
             </div>
           </div>
         </main>
