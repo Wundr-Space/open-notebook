@@ -28,6 +28,7 @@ export interface OnboardingState {
   adminAccount: Partial<AdminAccount>
   instanceConfiguration: Partial<InstanceConfiguration>
   isSubmitting: boolean
+  provisioningRequestId: string | null
 
   // Actions
   setCurrentStep: (step: number) => void
@@ -37,6 +38,7 @@ export interface OnboardingState {
   updateAdminAccount: (data: Partial<AdminAccount>) => void
   updateInstanceConfiguration: (data: Partial<InstanceConfiguration>) => void
   setIsSubmitting: (isSubmitting: boolean) => void
+  setProvisioningRequestId: (requestId: string) => void
   resetWizard: () => void
 }
 
@@ -51,6 +53,7 @@ const initialState = {
     storageSize: '10GB',
   },
   isSubmitting: false,
+  provisioningRequestId: null,
 }
 
 export const useOnboardingStore = create<OnboardingState>((set) => ({
@@ -78,6 +81,8 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
     })),
 
   setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
+
+  setProvisioningRequestId: (requestId) => set({ provisioningRequestId: requestId }),
 
   resetWizard: () => set(initialState),
 }))
