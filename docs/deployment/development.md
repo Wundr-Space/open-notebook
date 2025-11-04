@@ -114,6 +114,10 @@ cd ..
 
 #### Option A: Full Stack with Make
 
+(On a windows machine you need to 
+  - install choclaty from an elevated powershell terminal, https://chocolatey.org/install
+  - restart your machine, then install make from a powershell command line choco install make)
+
 ```bash
 # Start all services (recommended for development)
 make start-all
