@@ -175,16 +175,19 @@ stages:
                 Build URI: $(Build.BuildUri)
                 Artifact: $(CLOUD_RUN_SERVICE):$(imageTag)
                 "@
-                $body = @(
-                  @{ op => "add"; path => "/fields/System.Title"; value => $title },
-                  @{ op => "add"; path => "/fields/System.Description"; value => $desc }
-                ) | ConvertTo-Json -Depth 3
+
+                $patch = @()
+                $patch += @{ "op" = "add"; "path" = "/fields/System.Title"; "value" = $title }
+                $patch += @{ "op" = "add"; "path" = "/fields/System.Description"; "value" = $desc }
+                $body = $patch | ConvertTo-Json -Depth 3
 
                 $headers = @{
                   Authorization = "Bearer $(System.AccessToken)"
                   "Content-Type" = "application/json-patch+json"
                 }
 
-                $url = "$org/$project/_apis/wit/workitems/\%24Bug?api-version=7.1"
+                $url = "$org/$project/_apis/wit/workitems/%24Bug?api-version=7.1"
                 Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body
+
+
 
