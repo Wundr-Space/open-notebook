@@ -44,6 +44,9 @@ stages:
       - job: BuildAndPush
         displayName: 'Build and Push to Artifact Registry'
         steps:
+          - checkout: self
+            persistCredentials: true
+
           - task: Bash@3
             displayName: 'Show Build Information'
             inputs:
