@@ -177,15 +177,14 @@ stages:
                 "@
                 $body = @{
                   "fields" = @{
-                    "System.Title" = $title
-                    "System.Description" = $desc
-                    "System.WorkItemType" = "Bug"
+                    @{ "op" = "add"; "path" = "/fields/System.Title"; "value" = $title },
+                    @{ "op" = "add"; "path" = "/fields/System.Description"; "value" = $desc }
                   }
                 } | ConvertTo-Json -Depth 3
 
                 $headers = @{
                   Authorization = "Bearer $(System.AccessToken)"
-                  "Content-Type" = "application/json"
+                  "Content-Type" = "application/json-patch+json"
                 }
 
                 $url = "$org/$project/_apis/wit/workitems/\%24Bug?api-version=7.1"
