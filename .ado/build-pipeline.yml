@@ -156,3 +156,34 @@ stages:
               PathtoPublish: '$(Build.SourcesDirectory)'
               ArtifactName: 'build-info'
               publishLocation: 'Container'
+              
+          - task: PowerShell@2
+            displayName: 'Create Bug in Azure Boards on Build Failure'
+            condition: failed()
+            inputs:
+              targetType: 'inline'
+              script: |
+                $org = 'https://dev.azure.com/wundr'
+                $project = 'Communi.Team'
+                $title = "❌ Build failed: $(Build.DefinitionName) #$(Build.BuildNumber)"
+                $desc = @"
+                Environment: ${{ parameters.environment }}
+                Branch: $(Build.SourceBranchName)
+                Build URI: $(Build.BuildUri)
+                Artifact: $(CLOUD_RUN_SERVICE):$(imageTag)
+                "@
+                $body = @{
+                  "fields" = @{
+                    "System.Title" = $title
+                    "System.Description" = $desc
+                    "System.WorkItemType" = "Bug"
+                  }
+                } | ConvertTo-Json -Depth 3
+
+                $headers = @{
+                  Authorization = "Bearer $(System.AccessToken)"
+                  "Content-Type" = "application/json"
+                }
+
+                $url = "$org/$project/_apis/wit/workitems/$`bug?api-version=7.0"
+                Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body
