@@ -1,6 +1,7 @@
 'use client'
 
 import { useOnboardingStore } from '@/lib/stores/onboarding-store'
+import { AxiosError } from 'axios'
 import { useState } from 'react'
 import {
   Building2,
@@ -17,6 +18,8 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { provisioningApi } from '@/lib/api/provisioning'
+import { toast } from 'sonner'
 
 export function Step4ReviewDeploy() {
   const {
@@ -25,27 +28,67 @@ export function Step4ReviewDeploy() {
     instanceConfiguration,
     previousStep,
     setIsSubmitting,
+    setProvisioningRequestId,
     isSubmitting,
   } = useOnboardingStore()
   const router = useRouter()
   const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'success'>(
     'idle'
   )
+  const [error, setError] = useState<string | null>(null)
 
   const handleDeploy = async () => {
-    setIsSubmitting(true)
-    setDeploymentStatus('deploying')
+    try {
+      setIsSubmitting(true)
+      setDeploymentStatus('deploying')
+      setError(null)
 
-    // Simulate deployment process (replace with actual API call)
-    await new Promise((resolve) => setTimeout(resolve, 3000))
+      // Prepare the request data
+      const request = {
+        organizationDetails: {
+          organizationName: organizationDetails.organizationName!,
+          domain: organizationDetails.domain!,
+          description: organizationDetails.description!,
+        },
+        adminAccount: {
+          firstName: adminAccount.firstName!,
+          lastName: adminAccount.lastName!,
+          email: adminAccount.email!,
+          password: adminAccount.password!,
+        },
+        instanceConfiguration: {
+          subdomain: instanceConfiguration.subdomain!,
+          region: instanceConfiguration.region!,
+          aiProvider: instanceConfiguration.aiProvider!,
+          enablePublicAccess: instanceConfiguration.enablePublicAccess!,
+          storageSize: instanceConfiguration.storageSize!,
+        },
+      }
 
-    setDeploymentStatus('success')
-    setIsSubmitting(false)
+      // Call the provisioning API
+      const response = await provisioningApi.createInstance(request)
 
-    // Redirect to success page after a brief delay
-    setTimeout(() => {
-      router.push('/space/onboard/success')
-    }, 1500)
+      // Save the request ID for tracking
+      setProvisioningRequestId(response.requestId)
+
+      setDeploymentStatus('success')
+      toast.success('Provisioning started successfully!')
+
+      // Redirect to success page after a brief delay
+      setTimeout(() => {
+        router.push('/space/onboard/success')
+      }, 1500)
+    } catch (err: unknown) {
+      const errorMessage = err instanceof AxiosError
+        ? err.response?.data?.detail || err.message
+        : 'Failed to start provisioning. Please try again.'
+      
+      setError(errorMessage)
+      toast.error('Failed to start provisioning')
+      setDeploymentStatus('idle')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const InfoRow = ({

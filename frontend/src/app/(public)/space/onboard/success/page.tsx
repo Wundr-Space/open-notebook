@@ -4,44 +4,67 @@ import Link from 'next/link'
 import { Brain, CheckCircle, Mail, ExternalLink, Loader2 } from 'lucide-react'
 import { useOnboardingStore } from '@/lib/stores/onboarding-store'
 import { useEffect, useState } from 'react'
+import { provisioningApi, ProvisioningStatus } from '@/lib/api/provisioning'
 
 export default function SuccessPage() {
-  const { organizationDetails, instanceConfiguration, resetWizard } = useOnboardingStore()
-  const [provisioningStatus, setProvisioningStatus] = useState<
-    'provisioning' | 'configuring' | 'finalizing' | 'complete'
-  >('provisioning')
+  const { organizationDetails, instanceConfiguration, provisioningRequestId, resetWizard } = useOnboardingStore()
+  const [provisioningStatus, setProvisioningStatus] = useState<ProvisioningStatus | null>(null)
+  const [pollingError, setPollingError] = useState<string | null>(null)
 
   const subdomain = instanceConfiguration.subdomain || 'your-org'
-  const instanceUrl = `https://${subdomain}.hub.wundr.space`
+  const instanceUrl = provisioningStatus?.instanceUrl || `https://${subdomain}.hub.wundr.space`
 
-  // Simulate provisioning progress
+  // Poll for provisioning status
   useEffect(() => {
-    const timer1 = setTimeout(() => setProvisioningStatus('configuring'), 2000)
-    const timer2 = setTimeout(() => setProvisioningStatus('finalizing'), 4000)
-    const timer3 = setTimeout(() => setProvisioningStatus('complete'), 6000)
-
-    return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
-      clearTimeout(timer3)
+    if (!provisioningRequestId) {
+      setPollingError('No provisioning request ID found')
+      return
     }
-  }, [])
 
+    const pollStatus = async () => {
+      try {
+        const status = await provisioningApi.getStatus(provisioningRequestId)
+        setProvisioningStatus(status)
+
+        // Stop polling when complete or failed
+        if (status.status === 'complete' || status.status === 'failed') {
+          clearInterval(intervalId)
+        }
+      } catch (error) {
+        console.error('Error polling status:', error)
+        setPollingError('Failed to fetch provisioning status')
+        clearInterval(intervalId)
+      }
+    }
+
+    // Initial fetch
+    pollStatus()
+
+    // Poll every 2 seconds
+    const intervalId = setInterval(pollStatus, 2000)
+
+    return () => clearInterval(intervalId)
+  }, [provisioningRequestId])
+
+  const currentStatus = provisioningStatus?.status || 'pending'
   const steps = [
     {
       id: 'provisioning',
       label: 'Provisioning infrastructure on Google Cloud',
-      completed: ['configuring', 'finalizing', 'complete'].includes(provisioningStatus),
+      completed: ['configuring', 'finalizing', 'complete'].includes(currentStatus),
+      active: currentStatus === 'provisioning',
     },
     {
       id: 'configuring',
       label: 'Configuring Firebase Authentication',
-      completed: ['finalizing', 'complete'].includes(provisioningStatus),
+      completed: ['finalizing', 'complete'].includes(currentStatus),
+      active: currentStatus === 'configuring',
     },
     {
       id: 'finalizing',
       label: 'Setting up your Knowledge Space',
-      completed: provisioningStatus === 'complete',
+      completed: currentStatus === 'complete',
+      active: currentStatus === 'finalizing',
     },
   ]
 
@@ -68,7 +91,7 @@ export default function SuccessPage() {
             <div className="text-center space-y-8 mb-12">
               <div className="flex justify-center">
                 <div className="rounded-full bg-emerald-500/20 p-6">
-                  {provisioningStatus === 'complete' ? (
+                  {currentStatus === 'complete' ? (
                     <CheckCircle className="h-16 w-16 text-emerald-400" />
                   ) : (
                     <Loader2 className="h-16 w-16 text-emerald-400 animate-spin" />
@@ -78,12 +101,12 @@ export default function SuccessPage() {
 
               <div className="space-y-3">
                 <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
-                  {provisioningStatus === 'complete'
+                  {currentStatus === 'complete'
                     ? '🎉 Your Knowledge Space is Ready!'
                     : 'Deploying Your Knowledge Space'}
                 </h1>
                 <p className="text-lg text-slate-300 max-w-2xl mx-auto">
-                  {provisioningStatus === 'complete'
+                  {currentStatus === 'complete'
                     ? `Your Knowledge Space has been successfully deployed and is ready to use.`
                     : 'Please wait while we set up your infrastructure. This typically takes 3-5 minutes.'}
                 </p>
@@ -91,16 +114,19 @@ export default function SuccessPage() {
             </div>
 
             {/* Provisioning Progress */}
-            {provisioningStatus !== 'complete' && (
+            {currentStatus !== 'complete' && (
               <div className="rounded-2xl border border-white/10 bg-[#0e1526] p-8 space-y-6 mb-8">
                 <h2 className="text-xl font-semibold">Deployment Progress</h2>
+                {provisioningStatus?.message && (
+                  <p className="text-sm text-slate-400">{provisioningStatus.message}</p>
+                )}
                 <div className="space-y-4">
                   {steps.map((step) => (
                     <div key={step.id} className="flex items-start gap-4">
                       <div className="mt-1">
                         {step.completed ? (
                           <CheckCircle className="h-5 w-5 text-emerald-400" />
-                        ) : provisioningStatus === step.id ? (
+                        ) : step.active ? (
                           <Loader2 className="h-5 w-5 text-emerald-400 animate-spin" />
                         ) : (
                           <div className="h-5 w-5 rounded-full border-2 border-white/20" />
@@ -109,7 +135,7 @@ export default function SuccessPage() {
                       <div className="flex-1">
                         <p
                           className={`text-sm ${
-                            step.completed || provisioningStatus === step.id
+                            step.completed || step.active
                               ? 'text-white'
                               : 'text-slate-400'
                           }`}
@@ -124,7 +150,7 @@ export default function SuccessPage() {
             )}
 
             {/* Instance Details */}
-            {provisioningStatus === 'complete' && (
+            {currentStatus === 'complete' && (
               <>
                 <div className="rounded-2xl border border-white/10 bg-[#0e1526] p-8 space-y-6 mb-8">
                   <h2 className="text-xl font-semibold">Instance Details</h2>

@@ -1,27 +1,39 @@
 import type { NextConfig } from "next";
 
+// Check if we're building for static export (GitHub Pages)
+const isStaticExport = process.env.NEXT_BUILD_STATIC === 'true';
+
 const nextConfig: NextConfig = {
-  // Enable standalone output for optimized Docker deployment
-  output: "standalone",
+  // Static export for GitHub Pages, standalone for Docker deployment
+  output: isStaticExport ? "export" : "standalone",
 
-  // API Rewrites: Proxy /api/* requests to FastAPI backend
-  // This simplifies reverse proxy configuration - users only need to proxy to port 8502
-  // Next.js handles internal routing to the API backend on port 5055
-  async rewrites() {
-    // INTERNAL_API_URL: Where Next.js server-side should proxy API requests
-    // Default: http://localhost:5055 (single-container deployment)
-    // Override for multi-container: INTERNAL_API_URL=http://api-service:5055
-    const internalApiUrl = process.env.INTERNAL_API_URL || 'http://localhost:5055'
+  // Base path for GitHub Pages (if deployed to repo subdirectory)
+  ...(isStaticExport && {
+    basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
+    images: {
+      unoptimized: true,
+    },
+    trailingSlash: true,
+  }),
 
-    console.log(`[Next.js Rewrites] Proxying /api/* to ${internalApiUrl}/api/*`)
+  // API Rewrites: Only for standalone builds (not needed for static export)
+  ...(!isStaticExport && {
+    async rewrites() {
+      // INTERNAL_API_URL: Where Next.js server-side should proxy API requests
+      // Default: http://localhost:5055 (single-container deployment)
+      // Override for multi-container: INTERNAL_API_URL=http://api-service:5055
+      const internalApiUrl = process.env.INTERNAL_API_URL || 'http://localhost:5055'
 
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${internalApiUrl}/api/:path*`,
-      },
-    ]
-  },
+      console.log(`[Next.js Rewrites] Proxying /api/* to ${internalApiUrl}/api/*`)
+
+      return [
+        {
+          source: '/api/:path*',
+          destination: `${internalApiUrl}/api/:path*`,
+        },
+      ]
+    },
+  }),
 };
 
 export default nextConfig;
