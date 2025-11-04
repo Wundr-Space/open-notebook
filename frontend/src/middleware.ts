@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
 
 export function middleware() {
   // No middleware logic needed - routing handled by Next.js app router

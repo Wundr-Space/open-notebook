@@ -1,6 +1,7 @@
 'use client'
 
 import { useOnboardingStore } from '@/lib/stores/onboarding-store'
+import { AxiosError } from 'axios'
 import { useState } from 'react'
 import {
   Building2,
@@ -77,9 +78,12 @@ export function Step4ReviewDeploy() {
       setTimeout(() => {
         router.push('/space/onboard/success')
       }, 1500)
-    } catch (err: any) {
-      console.error('Provisioning failed:', err)
-      setError(err.response?.data?.detail || 'Failed to start provisioning. Please try again.')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof AxiosError
+        ? err.response?.data?.detail || err.message
+        : 'Failed to start provisioning. Please try again.'
+      
+      setError(errorMessage)
       toast.error('Failed to start provisioning')
       setDeploymentStatus('idle')
     } finally {
