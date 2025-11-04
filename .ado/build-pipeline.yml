@@ -188,5 +188,6 @@ stages:
                   "Content-Type" = "application/json"
                 }
 
-                $url = "$org/$project/_apis/wit/workitems/$`bug?api-version=7.0"
+                $url = "$org/$project/_apis/wit/workitems/\%24Bug?api-version=7.1"
                 Invoke-RestMethod -Uri $url -Method POST -Headers $headers -Body $body
+
