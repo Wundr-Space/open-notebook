@@ -58,9 +58,32 @@ export const provisioningApi = {
    * Create a new instance
    */
   createInstance: async (request: ProvisioningRequest): Promise<ProvisioningResponse> => {
+    // Convert camelCase to snake_case for backend (Python convention)
+    const backendRequest = {
+      organization_details: {
+        organization_name: request.organizationDetails.organizationName,
+        domain: request.organizationDetails.domain,
+        description: request.organizationDetails.description,
+      },
+      admin_account: {
+        first_name: request.adminAccount.firstName,
+        last_name: request.adminAccount.lastName,
+        email: request.adminAccount.email,
+        password: request.adminAccount.password,
+      },
+      instance_configuration: {
+        subdomain: request.instanceConfiguration.subdomain,
+        region: request.instanceConfiguration.region,
+        ai_provider: request.instanceConfiguration.aiProvider,
+        enable_public_access: request.instanceConfiguration.enablePublicAccess,
+        storage_size: request.instanceConfiguration.storageSize,
+      },
+      request_id: request.requestId,
+    }
+
     const response = await apiClient.post<ProvisioningResponse>(
       '/provisioning/instances',
-      request
+      backendRequest
     )
     return response.data
   },
