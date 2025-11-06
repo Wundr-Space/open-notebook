@@ -81,21 +81,40 @@ export const provisioningApi = {
       request_id: request.requestId,
     }
 
-    const response = await apiClient.post<ProvisioningResponse>(
+    const response = await apiClient.post<any>(
       '/provisioning/instances',
       backendRequest
     )
-    return response.data
+
+    // Convert snake_case response to camelCase (TypeScript convention)
+    return {
+      requestId: response.data.request_id,
+      status: response.data.status,
+      message: response.data.message,
+      instanceUrl: response.data.instance_url,
+      estimatedCompletionTime: response.data.estimated_completion_time,
+    }
   },
 
   /**
    * Get provisioning status
    */
   getStatus: async (requestId: string): Promise<ProvisioningStatus> => {
-    const response = await apiClient.get<ProvisioningStatus>(
+    const response = await apiClient.get<any>(
       `/provisioning/instances/${requestId}/status`
     )
-    return response.data
+
+    // Convert snake_case response to camelCase (TypeScript convention)
+    return {
+      requestId: response.data.request_id,
+      status: response.data.status,
+      progress: response.data.progress,
+      message: response.data.message,
+      instanceUrl: response.data.instance_url,
+      createdAt: response.data.created_at,
+      updatedAt: response.data.updated_at,
+      error: response.data.error,
+    }
   },
 
   /**
