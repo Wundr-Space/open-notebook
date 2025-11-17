@@ -10,6 +10,49 @@ The deployment ensures:
 - ✅ Models are automatically downloaded if missing
 - ✅ No downtime during updates (with proper health checks)
 
+## Build Artifacts Size
+
+**Important**: Build artifacts do NOT include Ollama models.
+
+- **Docker images**: ~2GB (application code only)
+- **Ollama models**: Downloaded on deployment server (~2-5GB)
+- **Models persist**: Stored in volumes, not rebuilt
+
+This keeps your CI/CD fast and artifact storage minimal.
+
+### Deployment Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ BUILD STAGE (Azure DevOps)                                  │
+│ ✓ Build application images (~2GB)                           │
+│ ✗ NO Ollama models included                                 │
+│ ✓ Fast builds, small artifacts                              │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ DEPLOY STAGE (Your Server)                                  │
+│ ✓ Pull images from registry                                 │
+│ ✓ Start containers                                          │
+│ ✓ Check if models exist in volume                           │
+│   ├─ Models exist? → Use cached models (fast!)              │
+│   └─ Models missing? → Download once (~5-10 mins)           │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ PERSISTENT VOLUMES (Survive deployments)                    │
+│ ollama_models/  ← Models stored here                        │
+│ surreal_data/   ← Database                                  │
+│ notebook_data/  ← User uploads                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Result**:
+- First deployment: ~10-15 mins (downloads models)
+- Subsequent deployments: ~2-3 mins (reuses models)
+
 ## Deployment Options
 
 ### Option 1: Azure DevOps Pipeline (Recommended)
@@ -76,12 +119,16 @@ docker compose -f docker-compose.full.yml -f docker-compose.prod.yml ps
 ./scripts/init-ollama-models.sh
 ```
 
-### Option 3: Custom Ollama Image (Advanced)
+## Why NOT Bake Models Into Images?
 
-Build a custom Ollama image with pre-downloaded models:
+**Don't include models in Docker images because:**
 
-**Not recommended** - Models are large (2-5GB each) and will bloat your image.
-Better to use persistent volumes.
+❌ **Large artifacts** - Each model is 2-5GB, making images huge
+❌ **Slow builds** - Every build downloads models again
+❌ **Wasted storage** - Each image version stores duplicate models
+❌ **Slow deployments** - Pushing/pulling multi-GB images is slow
+
+✅ **Use persistent volumes instead** - Download once, reuse forever
 
 ## Data Persistence
 

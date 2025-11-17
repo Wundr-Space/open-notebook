@@ -25,8 +25,11 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+          # NOTE: This build does NOT include Ollama models
+          # Models are downloaded on the deployment server (see Deploy stage)
+          # This keeps build artifacts small (~2GB vs ~10GB with models)
           - task: Docker@2
-            displayName: 'Build and verify images'
+            displayName: 'Build and verify images (models excluded)'
             inputs:
               command: 'build'
               Dockerfile: '**/Dockerfile'
@@ -92,9 +95,11 @@ stages:
                         elapsed=$((elapsed + 5))
                       done
 
-                # 3. Initialize Ollama models (idempotent - only downloads if missing)
+                # 3. Initialize Ollama models on deployment server
+                # Models are downloaded HERE (not during build) to keep artifacts small
+                # This only downloads on FIRST deployment - persistent volumes reuse models
                 - task: SSH@0
-                  displayName: 'Ensure Ollama Models'
+                  displayName: 'Download Ollama Models (First Run Only)'
                   inputs:
                     sshEndpoint: $(SSH_SERVICE_CONNECTION)
                     runOptions: 'inline'
@@ -102,26 +107,26 @@ stages:
                       set -e
                       cd $(DEPLOYMENT_PATH)
 
-                      echo "Checking Ollama models..."
+                      echo "Checking Ollama models on deployment server..."
 
                       # Function to check and pull model
                       ensure_model() {
                         local model=$1
                         echo "Checking for model: $model"
                         if docker compose -f docker-compose.full.yml -f docker-compose.prod.yml exec -T ollama ollama list | grep -q "$model"; then
-                          echo "✓ Model $model already exists"
+                          echo "✓ Model $model already exists (using cached version)"
                         else
-                          echo "⬇ Downloading model: $model (this may take a few minutes)..."
+                          echo "⬇ Downloading model: $model (first deployment only, ~2-5 minutes)..."
                           docker compose -f docker-compose.full.yml -f docker-compose.prod.yml exec -T ollama ollama pull "$model"
-                          echo "✓ Model $model downloaded successfully"
+                          echo "✓ Model $model downloaded and cached in persistent volume"
                         fi
                       }
 
-                      # Download required models
+                      # Download required models (only if missing)
                       ensure_model "nomic-embed-text"
                       ensure_model "qwen2.5:3b"
 
-                      echo "All Ollama models are ready!"
+                      echo "All Ollama models are ready! Future deployments will skip this step."
 
                 # 4. Verify deployment
                 - task: SSH@0
