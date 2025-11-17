@@ -31,7 +31,7 @@ from open_notebook.config import UPLOADS_FOLDER
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import Notebook, Source
 from open_notebook.domain.transformation import Transformation
-from open_notebook.exceptions import InvalidInputError
+from open_notebook.exceptions import InvalidInputError, NotFoundError
 
 router = APIRouter()
 
@@ -595,8 +595,11 @@ async def create_source_json(source_data: SourceCreate):
 
 
 async def _resolve_source_file(source_id: str) -> tuple[str, str]:
-    source = await Source.get(source_id)
-    if not source:
+    try:
+        source = await Source.get(source_id)
+        if not source:
+            raise HTTPException(status_code=404, detail="Source not found")
+    except NotFoundError:
         raise HTTPException(status_code=404, detail="Source not found")
 
     file_path = source.asset.file_path if source.asset else None
@@ -684,6 +687,8 @@ async def get_source(source_id: str):
             # Notebook associations
             notebooks=notebook_ids,
         )
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -774,6 +779,8 @@ async def get_source_status(source_id: str):
                 command_id=str(source.command) if source.command else None,
             )
 
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -816,6 +823,8 @@ async def update_source(source_id: str, source_update: SourceUpdate):
             created=str(source.created),
             updated=str(source.updated),
         )
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except InvalidInputError as e:
@@ -941,6 +950,8 @@ async def retry_source_processing(source_id: str):
                 status_code=500, detail=f"Failed to queue retry processing: {str(e)}"
             )
 
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -961,6 +972,8 @@ async def delete_source(source_id: str):
         await source.delete()
 
         return {"message": "Source deleted successfully"}
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -988,6 +1001,8 @@ async def get_source_insights(source_id: str):
             )
             for insight in insights
         ]
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except Exception as e:
@@ -1033,6 +1048,13 @@ async def create_source_insight(source_id: str, request: CreateSourceInsightRequ
         else:
             raise HTTPException(status_code=500, detail="Failed to create insight")
 
+    except NotFoundError as e:
+        # NotFoundError could be from Source.get() or Transformation.get()
+        error_msg = str(e)
+        if "transformation" in error_msg.lower():
+            raise HTTPException(status_code=404, detail="Transformation not found")
+        else:
+            raise HTTPException(status_code=404, detail="Source not found")
     except HTTPException:
         raise
     except Exception as e:
