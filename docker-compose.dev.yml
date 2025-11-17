@@ -9,6 +9,23 @@ services:
     pull_policy: always
     user: root
     restart: always
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    restart: always
+    # Uncomment the following section if you have an NVIDIA GPU
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
   open_notebook:
     build:
       context: .
@@ -18,8 +35,11 @@ services:
       - "5055:5055"
     env_file:
       - ./docker.env
+    environment:
+      - OLLAMA_API_BASE=http://ollama:11434
     depends_on:
       - surrealdb
+      - ollama
     volumes:
       - ./notebook_data:/app/data
     restart: always
