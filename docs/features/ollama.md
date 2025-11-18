@@ -1,6 +1,6 @@
 # Ollama Setup Guide
 
-Ollama provides free, local AI models that run on your own hardware. This guide covers everything you need to know about setting up Ollama with Open Notebook, including different deployment scenarios and network configurations.
+Ollama provides free, local AI models that run on your own hardware. This guide covers everything you need to know about setting up Ollama with Open Notebook, with a focus on containerized deployment using Docker.
 
 ## Why Choose Ollama?
 
@@ -11,62 +11,149 @@ Ollama provides free, local AI models that run on your own hardware. This guide 
 - **🧠 Reasoning Models**: Support for advanced reasoning models like DeepSeek-R1
 - **💾 Model Variety**: Access to hundreds of open-source models
 
-## Quick Start
+## Quick Start (Docker - Recommended)
 
-### 1. Install Ollama
+The easiest way to run Ollama with Open Notebook is using Docker Compose, where both services run in containers.
 
-**Linux/macOS:**
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
+### 1. Create Docker Compose Configuration
+
+Create or update your `docker-compose.yml`:
+
+```yaml
+services:
+  open_notebook:
+    image: lfnovo/open_notebook:v1-latest-single
+    ports:
+      - "8502:8502"
+      - "5055:5055"
+    environment:
+      - OLLAMA_API_BASE=http://ollama:11434
+    env_file:
+      - ./docker.env
+    volumes:
+      - ./notebook_data:/app/data
+      - ./surreal_single_data:/mydata
+    depends_on:
+      - ollama
+    restart: always
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: always
+    # Uncomment for NVIDIA GPU support:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_data:
 ```
 
-**Windows:**
-Download and install from [ollama.ai](https://ollama.ai/download)
+### 2. Add to your `docker.env`
 
-### 2. Pull Required Models
+```env
+OLLAMA_API_BASE=http://ollama:11434
+```
+
+### 3. Start the Containers
+
+```bash
+docker compose up -d
+```
+
+### 4. Download Models into Ollama Container
 
 ```bash
 # Language models (choose one or more)
-ollama pull qwen3              # Excellent general purpose, 7B parameters
-ollama pull gemma3            # Google's model, good performance
-ollama pull deepseek-r1       # Advanced reasoning model
-ollama pull phi4              # Microsoft's efficient model
+docker exec -it ollama ollama pull qwen3              # Excellent general purpose, 7B
+docker exec -it ollama ollama pull gemma3            # Google's model
+docker exec -it ollama ollama pull deepseek-r1       # Advanced reasoning
+docker exec -it ollama ollama pull phi4              # Microsoft's efficient model
 
-# Embedding model (required for search)
-ollama pull mxbai-embed-large  # Best embedding model for Ollama
+# Embedding model (REQUIRED for search functionality)
+docker exec -it ollama ollama pull mxbai-embed-large
 ```
 
-### 3. Configure Open Notebook
+### 5. Configure Models in Open Notebook
 
-**For local installation:**
-```bash
-export OLLAMA_API_BASE=http://localhost:11434
-```
+1. Open Open Notebook at `http://localhost:8502`
+2. Go to Settings → Models
+3. Configure:
+   - **Language Model**: `qwen3`
+   - **Embedding Model**: `mxbai-embed-large`
+4. Click Save
 
-**For Docker installation:**
-```bash
-export OLLAMA_API_BASE=http://host.docker.internal:11434
-```
+That's it! You now have a fully containerized, privacy-focused AI setup.
 
 ## Network Configuration Guide
 
 The `OLLAMA_API_BASE` environment variable tells Open Notebook where to find your Ollama server. The correct value depends on your deployment scenario:
 
-### Scenario 1: Local Installation (Same Machine)
+### Scenario 1: Both in Docker (Recommended)
+
+**When both Open Notebook and Ollama run in the same Docker Compose stack:**
+
+```bash
+export OLLAMA_API_BASE=http://ollama:11434
+```
+
+This is the recommended approach because:
+- ✅ Simple networking - services communicate by service name
+- ✅ Easy to manage - single `docker compose` command
+- ✅ Portable - works the same on all platforms
+- ✅ Isolated - all dependencies containerized
+- ✅ GPU support available (for NVIDIA)
+
+See the Quick Start section above for the complete docker-compose.yml example.
+
+### Scenario 2: Remote Ollama Container
+
+**When Ollama runs in Docker on a different machine in your network:**
+
+```bash
+export OLLAMA_API_BASE=http://192.168.1.100:11434
+# Replace 192.168.1.100 with your Ollama server's IP address
+```
+
+Example on the remote machine:
+```bash
+# On the remote machine (192.168.1.100)
+docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+docker exec -it ollama ollama pull qwen3
+```
+
+**Security Note:** Only use this in trusted networks. Ollama doesn't have built-in authentication.
+
+### Alternative: Local Installation (Advanced Users)
+
+If you prefer not to use Docker, you can install Ollama directly on your host machine:
+
+#### Scenario 3: Both Running Locally (No Docker)
 
 When both Open Notebook and Ollama run directly on your machine:
 
 ```bash
+# Install Ollama
+curl -fsSL https://ollama.ai/install.sh | sh  # Linux/macOS
+# or download from ollama.ai for Windows
+
+# Pull models
+ollama pull qwen3
+ollama pull mxbai-embed-large
+
+# Configure Open Notebook
 export OLLAMA_API_BASE=http://localhost:11434
-# or
-export OLLAMA_API_BASE=http://127.0.0.1:11434
 ```
 
-**Use `localhost` vs `127.0.0.1`:**
-- **localhost**: Recommended, works with most configurations
-- **127.0.0.1**: Use if you have DNS resolution issues with localhost
-
-### Scenario 2: Open Notebook in Docker, Ollama on Host
+#### Scenario 4: Open Notebook in Docker, Ollama on Host
 
 When Open Notebook runs in Docker but Ollama runs on your host machine:
 
@@ -91,63 +178,7 @@ ollama serve
 - Docker containers are considered "external" even when running on the same machine
 - Setting `OLLAMA_HOST=0.0.0.0:11434` allows connections from Docker containers
 
-### Scenario 3: Both in Docker (Same Compose)
-
-When both Open Notebook and Ollama run in the same Docker Compose stack:
-
-```bash
-export OLLAMA_API_BASE=http://ollama:11434
-```
-
-**Docker Compose Example:**
-
-```yaml
-version: '3.8'
-services:
-  open-notebook:
-    image: lfnovo/open_notebook:v1-latest-single
-    ports:
-      - "8502:8502"
-      - "5055:5055"
-    environment:
-      - OLLAMA_API_BASE=http://ollama:11434
-    volumes:
-      - ./notebook_data:/app/data
-      - ./surreal_data:/mydata
-    depends_on:
-      - ollama
-
-  ollama:
-    image: ollama/ollama:v1-latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    # Optional: GPU support
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-volumes:
-  ollama_data:
-```
-
-### Scenario 4: Remote Ollama Server
-
-When Ollama runs on a different machine in your network:
-
-```bash
-export OLLAMA_API_BASE=http://192.168.1.100:11434
-# Replace 192.168.1.100 with your Ollama server's IP address
-```
-
-**Security Note:** Only use this in trusted networks. Ollama doesn't have built-in authentication.
-
-### Scenario 5: Ollama with Custom Port
+### Scenario 5: Custom Port
 
 If you've configured Ollama to use a different port:
 
@@ -236,63 +267,80 @@ ollama pull qwen3
 
 **1. "Ollama unavailable" in Open Notebook**
 
-**Check Ollama is running:**
+**For Docker setups (Recommended):**
+
 ```bash
+# Check both containers are running
+docker compose ps
+
+# Should show both open_notebook and ollama as "Up"
+
+# Test Ollama from Open Notebook container
+docker exec -it open_notebook curl http://ollama:11434/api/tags
+
+# If that fails, check Ollama directly
+docker exec -it ollama ollama list
+```
+
+**If containers aren't communicating:**
+```bash
+# Ensure OLLAMA_API_BASE is set correctly in docker.env
+cat docker.env | grep OLLAMA
+
+# Should show: OLLAMA_API_BASE=http://ollama:11434
+
+# Restart containers
+docker compose restart
+```
+
+**For local installations:**
+
+```bash
+# Check Ollama is running
 curl http://localhost:11434/api/tags
-```
 
-**Verify environment variable:**
-```bash
-echo $OLLAMA_API_BASE
-```
-
-**⚠️ IMPORTANT: Enable external connections (most common fix):**
-```bash
-# If Open Notebook runs in Docker or on a different machine,
-# Ollama must bind to all interfaces, not just localhost
+# If Open Notebook is in Docker but Ollama is on host:
+# Ollama must bind to all interfaces
 export OLLAMA_HOST=0.0.0.0:11434
 ollama serve
 ```
-> **Why this is needed:** By default, Ollama only accepts connections from `localhost` (127.0.0.1). When Open Notebook runs in Docker or on a different machine, it can't reach Ollama unless you configure `OLLAMA_HOST=0.0.0.0:11434` to accept external connections.
 
-**Restart Ollama:**
+**2. Models not available after download**
+
 ```bash
-# Linux/macOS
-sudo systemctl restart ollama
-# or
-ollama serve
+# List models in Ollama container
+docker exec -it ollama ollama list
 
-# Windows
-# Restart from system tray or Services
-```
-
-**2. Docker networking issues**
-
-**From inside Open Notebook container, test Ollama:**
-```bash
-# Get into container
-docker exec -it open-notebook bash
-
-# Test connection
-curl http://host.docker.internal:11434/api/tags
+# If empty, pull models again
+docker exec -it ollama ollama pull qwen3
+docker exec -it ollama ollama pull mxbai-embed-large
 ```
 
 **3. Models not downloading**
 
-**Check disk space:**
+**For Docker:**
 ```bash
+# Check disk space in container
+docker exec -it ollama df -h
+
+# Check container logs
+docker logs ollama
+
+# Manual model pull with verbose output
+docker exec -it ollama ollama pull qwen3 --verbose
+
+# Clear failed downloads
+docker exec -it ollama ollama rm qwen3
+docker exec -it ollama ollama pull qwen3
+```
+
+**For local installation:**
+```bash
+# Check disk space
 df -h
-```
 
-**Manual model pull:**
-```bash
+# Manual model pull
 ollama pull qwen3 --verbose
-```
-
-**Clear failed downloads:**
-```bash
-ollama rm qwen3
-ollama pull qwen3
 ```
 
 **4. Slow performance**

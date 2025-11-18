@@ -156,6 +156,79 @@ docker compose up -d
 - Ask: "What are the main applications of AI mentioned in the source?"
 - Get instant answers with citations from your content
 
+## Alternative: Free Local AI with Ollama
+
+Want to avoid API costs and keep everything private? Add Ollama to your Docker setup for completely free, local AI models.
+
+### Quick Ollama Setup
+
+1. **Update your `docker-compose.yml`** to include Ollama:
+   ```yaml
+   services:
+     open_notebook:
+       image: lfnovo/open_notebook:v1-latest-single
+       ports:
+         - "8502:8502"
+         - "5055:5055"
+       environment:
+         - OLLAMA_API_BASE=http://ollama:11434
+       env_file:
+         - ./docker.env
+       volumes:
+         - ./notebook_data:/app/data
+         - ./surreal_single_data:/mydata
+       depends_on:
+         - ollama
+       restart: always
+
+     ollama:
+       image: ollama/ollama:latest
+       ports:
+         - "11434:11434"
+       volumes:
+         - ollama_data:/root/.ollama
+       restart: always
+
+   volumes:
+     ollama_data:
+   ```
+
+2. **Restart with both services:**
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+3. **Download AI models into Ollama container:**
+   ```bash
+   # Language model (choose one)
+   docker exec -it ollama ollama pull qwen3              # Recommended: excellent quality
+   docker exec -it ollama ollama pull gemma3            # Google's model
+   docker exec -it ollama ollama pull deepseek-r1       # Advanced reasoning
+
+   # Embedding model (required for search)
+   docker exec -it ollama ollama pull mxbai-embed-large
+   ```
+
+4. **Configure in Open Notebook:**
+   - Go to Settings → Models
+   - Set Language Model: `qwen3`
+   - Set Embedding Model: `mxbai-embed-large`
+   - Click Save
+
+**Benefits:**
+- ✅ Completely free - no API costs
+- ✅ Private - data never leaves your computer
+- ✅ Works offline
+- ✅ No usage limits
+
+**Requirements:**
+- 8GB+ RAM recommended
+- 10GB+ disk space per model
+- GPU optional but speeds things up
+
+For more details, see the [complete Ollama setup guide](../features/ollama.md).
+
 ## Next Steps
 
 Now that you have Open Notebook running:

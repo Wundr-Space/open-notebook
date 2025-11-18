@@ -231,31 +231,85 @@ OpenRouter gives you access to virtually every AI model through a single API:
 - `google/gemini-pro` - Good reasoning capabilities
 - `meta-llama/llama-3-8b-instruct` - Open source option
 
-### Ollama (Local Models)
+### Ollama (Local Models in Docker)
 
-Run AI models locally for complete privacy:
+Run AI models locally in a Docker container for complete privacy and easy deployment:
 
-1. **Install Ollama** on your host machine from [ollama.ai](https://ollama.ai)
-2. **Start Ollama**:
-   ```bash
-   ollama serve
+1. **Add Ollama service to your `docker-compose.yml`**:
+   ```yaml
+   services:
+     open_notebook:
+       image: lfnovo/open_notebook:v1-latest-single
+       # Or use: ghcr.io/lfnovo/open-notebook:v1-latest-single
+       ports:
+         - "8502:8502"
+         - "5055:5055"
+       environment:
+         - OLLAMA_API_BASE=http://ollama:11434
+       env_file:
+         - ./docker.env
+       volumes:
+         - ./notebook_data:/app/data
+         - ./surreal_single_data:/mydata
+       depends_on:
+         - ollama
+       restart: always
+
+     ollama:
+       image: ollama/ollama:latest
+       ports:
+         - "11434:11434"
+       volumes:
+         - ollama_data:/root/.ollama
+       restart: always
+       # Optional: GPU support for NVIDIA cards
+       # deploy:
+       #   resources:
+       #     reservations:
+       #       devices:
+       #         - driver: nvidia
+       #           count: 1
+       #           capabilities: [gpu]
+
+   volumes:
+     ollama_data:
    ```
-3. **Download models**:
-   ```bash
-   ollama pull llama2        # 7B model (~4GB)
-   ollama pull mistral       # 7B model (~4GB)
-   ollama pull llama2:13b    # 13B model (~8GB)
-   ```
-4. **Find your IP address**:
-   - Windows: `ipconfig` (look for IPv4 Address)
-   - macOS/Linux: `ifconfig` or `ip addr show`
-5. **Configure Open Notebook**:
+
+2. **Add to your `docker.env`**:
    ```env
-   OLLAMA_API_BASE=http://192.168.1.100:11434
+   OLLAMA_API_BASE=http://ollama:11434
    ```
-   Replace `192.168.1.100` with your actual IP.
 
-6. **Restart and configure** models in Models
+3. **Start both containers**:
+   ```bash
+   docker compose up -d
+   ```
+
+4. **Download models into the Ollama container**:
+   ```bash
+   # Access the Ollama container
+   docker exec -it ollama ollama pull qwen3              # Excellent general purpose
+   docker exec -it ollama ollama pull mxbai-embed-large  # Required for search
+   docker exec -it ollama ollama pull deepseek-r1        # Advanced reasoning
+   ```
+
+5. **Configure models** in Open Notebook Settings → Models
+   - Language Model: `qwen3`
+   - Embedding Model: `mxbai-embed-large`
+
+**GPU Support (NVIDIA):**
+If you have an NVIDIA GPU, uncomment the `deploy` section in the docker-compose.yml above and install [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html):
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+```
 
 ### Other Providers
 
