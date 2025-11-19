@@ -1,6 +1,6 @@
-# Open Notebook Installation Guide - From Scratch
+# Open Notebook Installation Guide - From Scratch (Build from Source)
 
-Complete containerized setup for Open Notebook with SurrealDB and Ollama on a fresh system. All services run in Docker containers for easy deployment and management.
+Complete containerized setup for Open Notebook built from source code. This guide shows how to build Docker images from the source code in this repository and run them locally for testing.
 
 ## System Requirements
 
@@ -43,21 +43,47 @@ docker --version
 docker compose version
 ```
 
-## Step 2: Create Open Notebook with Ollama
+## Step 2: Clone or Navigate to Source Code
 
-All services will run in Docker containers - no local installation of Ollama required!
+If you haven't already cloned the repository:
 
-### Create Project Directory
 ```bash
-mkdir open-notebook && cd open-notebook
+git clone https://github.com/Wundr-Space/open-notebook.git
+cd open-notebook
 ```
 
-### Create docker-compose.yml
+If you're already in the repository:
+```bash
+cd /path/to/open-notebook
+```
+
+## Step 3: Build Open Notebook Docker Image from Source
+
+Build the Docker image from the source code:
+
+```bash
+# Build the single-container image (includes Open Notebook + SurrealDB)
+docker build -f Dockerfile.single -t open-notebook:local-build .
+```
+
+This will:
+- Build the Python backend
+- Build the Next.js frontend
+- Install SurrealDB
+- Create a single container image with everything
+- Take 5-15 minutes depending on your machine
+
+**Note**: The image will be tagged as `open-notebook:local-build` on your local machine.
+
+## Step 4: Create Docker Compose Configuration
+
+Create a `docker-compose.yml` file in your project directory:
+
 ```bash
 cat > docker-compose.yml << 'EOF'
 services:
   open_notebook:
-    image: lfnovo/open_notebook:v1-latest-single
+    image: open-notebook:local-build  # Uses your locally built image
     ports:
       - "8502:8502"  # Web UI
       - "5055:5055"  # API
@@ -101,15 +127,15 @@ volumes:
 EOF
 ```
 
-### Start All Services
+## Step 5: Start All Services
+
 ```bash
 docker compose up -d
 ```
 
 This will:
-- Download the Open Notebook image (~2GB)
-- Download the Ollama image (~500MB)
-- Start both containers
+- Start your locally built Open Notebook container
+- Start the Ollama container
 - Create persistent storage volumes
 
 ### Verify Services Are Running
@@ -122,7 +148,7 @@ docker compose ps
 # ollama          running
 ```
 
-## Step 3: Download AI Models into Ollama Container
+## Step 6: Download AI Models into Ollama Container
 
 Now we'll install AI models directly into the Ollama container:
 
@@ -145,13 +171,13 @@ docker exec -it ollama ollama list
 
 You should see the models you downloaded.
 
-## Step 4: Access Open Notebook
+## Step 7: Access Open Notebook
 
 Open your browser to: **http://localhost:8502**
 
 You should see the Open Notebook interface!
 
-## Step 5: Configure AI Models
+## Step 8: Configure AI Models
 
 1. Click the **Settings** icon (⚙️) in the sidebar
 2. Navigate to **Models** tab
@@ -160,7 +186,7 @@ You should see the Open Notebook interface!
    - **Embedding Model**: Select `mxbai-embed-large`
 4. Click **Save**
 
-## Step 6: Create Your First Notebook
+## Step 9: Create Your First Notebook
 
 1. Click **"Create New Notebook"**
 2. Give it a name (e.g., "My First Notebook")
@@ -168,6 +194,21 @@ You should see the Open Notebook interface!
 4. Click **"Create"**
 5. Add your first source (PDF, web link, or text)
 6. Start chatting with your content!
+
+## Rebuilding After Code Changes
+
+If you make changes to the source code and want to rebuild:
+
+```bash
+# Stop containers
+docker compose down
+
+# Rebuild the image
+docker build -f Dockerfile.single -t open-notebook:local-build .
+
+# Start containers again
+docker compose up -d
+```
 
 ## GPU Support (Optional)
 
@@ -192,6 +233,15 @@ docker compose up -d
 ```
 
 ## Troubleshooting
+
+### Build Failures
+
+**If Docker build fails:**
+```bash
+# Clean up and try again
+docker system prune -a
+docker build -f Dockerfile.single -t open-notebook:local-build .
+```
 
 ### Ollama Container Not Communicating with Open Notebook
 ```bash
@@ -267,8 +317,9 @@ docker compose restart
 # Restart specific service
 docker compose restart ollama
 
-# Update to latest versions
-docker compose pull
+# Rebuild and restart after code changes
+docker compose down
+docker build -f Dockerfile.single -t open-notebook:local-build .
 docker compose up -d
 
 # Check container resource usage
@@ -335,9 +386,9 @@ tar -xzf backup-20240101.tar.gz
 
 ## What's Running?
 
-Your Open Notebook installation consists of three containerized services:
+Your Open Notebook installation consists of containerized services built from source:
 
-1. **open_notebook** (port 8502, 5055)
+1. **open_notebook** (port 8502, 5055) - Built from this repository
    - Next.js web interface
    - FastAPI backend
    - SurrealDB database (embedded)
@@ -347,6 +398,26 @@ Your Open Notebook installation consists of three containerized services:
    - Stores and runs local AI models
 
 All services communicate over Docker's internal network.
+
+## Development Workflow
+
+For active development:
+
+```bash
+# 1. Make code changes in your editor
+
+# 2. Rebuild the image
+docker build -f Dockerfile.single -t open-notebook:local-build .
+
+# 3. Restart containers
+docker compose down
+docker compose up -d
+
+# 4. Check logs for errors
+docker compose logs -f open_notebook
+
+# 5. Test your changes at http://localhost:8502
+```
 
 ## Performance Expectations
 
@@ -372,6 +443,7 @@ For public deployments, add password protection by adding to environment:
 - ✅ Generate AI notes and summaries
 - ✅ Create multi-speaker podcasts from your research
 - ✅ Use transformations to extract insights
+- ✅ Make code changes and rebuild to test
 
 ## Learn More
 
@@ -389,4 +461,4 @@ For public deployments, add password protection by adding to environment:
 
 ---
 
-**Congratulations!** You now have a fully containerized, privacy-focused AI research environment. All your data stays on your machine, and you have complete control over your AI stack.
+**Congratulations!** You now have Open Notebook running from source code in Docker containers. Make changes to the code, rebuild, and test your modifications locally!

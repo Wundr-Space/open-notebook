@@ -1,18 +1,31 @@
-# Open Notebook Quick Installation Guide
+# Open Notebook Quick Installation Guide (Build from Source)
 
-Fast containerized setup for Open Notebook with Ollama. All services run in Docker containers.
+Fast setup to build and run Open Notebook from source code in Docker containers.
 
-**Prerequisites**: Docker and Docker Compose installed.
+**Prerequisites**: Docker and Docker Compose installed, source code cloned.
 
-## One-Command Setup
+## Quick Build and Run
 
-### 1. Create Project and Start Services
+### 1. Navigate to Source Directory
 
 ```bash
-mkdir open-notebook && cd open-notebook && cat > docker-compose.yml << 'EOF'
+cd /path/to/open-notebook
+```
+
+### 2. Build Docker Image from Source
+
+```bash
+# Build the single-container image (5-15 minutes)
+docker build -f Dockerfile.single -t open-notebook:local-build .
+```
+
+### 3. Create and Start Services
+
+```bash
+cat > docker-compose.yml << 'EOF'
 services:
   open_notebook:
-    image: lfnovo/open_notebook:v1-latest-single
+    image: open-notebook:local-build  # Your locally built image
     ports:
       - "8502:8502"
       - "5055:5055"
@@ -45,7 +58,7 @@ EOF
 docker compose up -d
 ```
 
-### 2. Download AI Models into Ollama Container
+### 4. Download AI Models
 
 ```bash
 # Language model (choose one)
@@ -57,7 +70,7 @@ docker exec -it ollama ollama pull deepseek-r1        # Reasoning
 docker exec -it ollama ollama pull mxbai-embed-large
 ```
 
-### 3. Access and Configure
+### 5. Access and Configure
 
 1. Open browser: **http://localhost:8502**
 2. Click **Settings** → **Models**
@@ -66,61 +79,22 @@ docker exec -it ollama ollama pull mxbai-embed-large
    - Embedding Model: `mxbai-embed-large`
 4. Click **Save**
 
-**Done!** You now have a fully containerized AI research environment.
+**Done!** Your locally built Open Notebook is running.
 
-## Alternative: Copy-Paste Setup
+## Development Workflow
 
-If you prefer separate steps:
+Making code changes? Here's the quick rebuild process:
 
 ```bash
-# Create directory and enter
-mkdir open-notebook && cd open-notebook
-```
+# 1. Make your code changes
 
-Create `docker-compose.yml` file with this content:
-
-```yaml
-services:
-  open_notebook:
-    image: lfnovo/open_notebook:v1-latest-single
-    ports:
-      - "8502:8502"
-      - "5055:5055"
-    environment:
-      - OLLAMA_API_BASE=http://ollama:11434
-      - SURREAL_URL=ws://localhost:8000/rpc
-      - SURREAL_USER=root
-      - SURREAL_PASSWORD=root
-      - SURREAL_NAMESPACE=open_notebook
-      - SURREAL_DATABASE=production
-    volumes:
-      - ./notebook_data:/app/data
-      - ./surreal_single_data:/mydata
-    depends_on:
-      - ollama
-    restart: always
-
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    restart: always
-
-volumes:
-  ollama_data:
-```
-
-Start services:
-```bash
+# 2. Rebuild and restart
+docker compose down
+docker build -f Dockerfile.single -t open-notebook:local-build .
 docker compose up -d
-```
 
-Download models:
-```bash
-docker exec -it ollama ollama pull qwen3
-docker exec -it ollama ollama pull mxbai-embed-large
+# 3. Check logs
+docker compose logs -f open_notebook
 ```
 
 ## With GPU Support (NVIDIA)
@@ -208,7 +182,7 @@ docker compose restart
 ## Common Commands
 
 ```bash
-# Check status
+# Check build status
 docker compose ps
 
 # View logs
@@ -217,6 +191,11 @@ docker compose logs -f
 # View specific service logs
 docker compose logs -f ollama
 docker compose logs -f open_notebook
+
+# Rebuild after code changes
+docker compose down
+docker build -f Dockerfile.single -t open-notebook:local-build .
+docker compose up -d
 
 # Restart all
 docker compose restart
@@ -227,9 +206,6 @@ docker compose restart ollama
 # Stop all
 docker compose down
 
-# Update to latest
-docker compose pull && docker compose up -d
-
 # List models in Ollama
 docker exec -it ollama ollama list
 
@@ -238,6 +214,14 @@ docker stats
 ```
 
 ## Troubleshooting
+
+### Build Fails
+
+```bash
+# Clean Docker cache and rebuild
+docker system prune -a
+docker build -f Dockerfile.single -t open-notebook:local-build .
+```
 
 ### "Ollama unavailable" Error
 
@@ -296,6 +280,34 @@ docker compose down -v
 docker compose up -d
 ```
 
+## Build Options
+
+### Build Multi-Container Version
+
+For separate backend/frontend containers:
+
+```bash
+# Build regular (multi-container) image
+docker build -f Dockerfile -t open-notebook:multi-build .
+```
+
+### Build with Custom Tag
+
+```bash
+# Build with version tag
+docker build -f Dockerfile.single -t open-notebook:v1.0.0 .
+```
+
+### Build for Specific Platform
+
+```bash
+# Build for ARM64 (e.g., Raspberry Pi, Apple Silicon)
+docker build -f Dockerfile.single --platform linux/arm64 -t open-notebook:local-build .
+
+# Build for AMD64 (standard x86_64)
+docker build -f Dockerfile.single --platform linux/amd64 -t open-notebook:local-build .
+```
+
 ## Model Recommendations
 
 ### Fast & Free (CPU-friendly)
@@ -314,7 +326,7 @@ docker compose up -d
 
 Your setup includes:
 
-1. **open_notebook** container
+1. **open_notebook** container (built from source)
    - Web UI (port 8502)
    - API backend (port 5055)
    - SurrealDB database (embedded)
@@ -323,7 +335,7 @@ Your setup includes:
    - AI model server (port 11434)
    - Local AI models storage
 
-All communicate over Docker's internal network - no external dependencies!
+All communicate over Docker's internal network.
 
 ## Performance Tips
 
@@ -385,4 +397,4 @@ For public deployments, add password protection:
 
 ---
 
-**You're all set!** Enjoy your privacy-focused, containerized AI research environment. All your data stays on your machine with complete control over your AI stack.
+**You're all set!** Your Open Notebook is running from source code. Make changes, rebuild, and test locally!
